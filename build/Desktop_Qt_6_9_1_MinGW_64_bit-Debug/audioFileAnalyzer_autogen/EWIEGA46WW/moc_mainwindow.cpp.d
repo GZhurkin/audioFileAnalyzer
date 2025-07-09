@@ -176,7 +176,6 @@ D:/audioFileAnalyzer/audioFileAnalyzer/build/Desktop_Qt_6_9_1_MinGW_64_bit-Debug
   D:/Qt/6.9.1/mingw_64/include/QtGui/QMouseEvent \
   D:/Qt/6.9.1/mingw_64/include/QtGui/QPen \
   D:/Qt/6.9.1/mingw_64/include/QtGui/QTransform \
-  D:/Qt/6.9.1/mingw_64/include/QtGui/QWheelEvent \
   D:/Qt/6.9.1/mingw_64/include/QtGui/qaction.h \
   D:/Qt/6.9.1/mingw_64/include/QtGui/qbitmap.h \
   D:/Qt/6.9.1/mingw_64/include/QtGui/qbrush.h \

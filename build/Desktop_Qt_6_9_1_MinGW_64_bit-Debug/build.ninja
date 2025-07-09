@@ -208,7 +208,7 @@ build audioFileAnalyzer_autogen/timestamp audioFileAnalyzer_autogen/mocs_compila
 #############################################
 # Phony custom command for CMakeFiles\audioFileAnalyzer_autogen_timestamp_deps
 
-build CMakeFiles/audioFileAnalyzer_autogen_timestamp_deps | ${cmake_ninja_workdir}CMakeFiles/audioFileAnalyzer_autogen_timestamp_deps: phony D$:/Qt/6.9.1/mingw_64/lib/libQt6Multimedia.a D$:/Qt/6.9.1/mingw_64/lib/libQt6Widgets.a D$:/Qt/6.9.1/mingw_64/bin/uic.exe D$:/Qt/6.9.1/mingw_64/lib/libQt6Charts.a D$:/Qt/6.9.1/mingw_64/lib/libQt6Gui.a D$:/Qt/6.9.1/mingw_64/bin/moc.exe
+build CMakeFiles/audioFileAnalyzer_autogen_timestamp_deps | ${cmake_ninja_workdir}CMakeFiles/audioFileAnalyzer_autogen_timestamp_deps: phony D$:/Qt/6.9.1/mingw_64/lib/libQt6Gui.a D$:/Qt/6.9.1/mingw_64/bin/moc.exe D$:/Qt/6.9.1/mingw_64/lib/libQt6Charts.a D$:/Qt/6.9.1/mingw_64/lib/libQt6Multimedia.a D$:/Qt/6.9.1/mingw_64/lib/libQt6Widgets.a D$:/Qt/6.9.1/mingw_64/bin/uic.exe
 
 
 #############################################
