@@ -11,9 +11,13 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_model(new AudioModel(this))
     , m_player(new QMediaPlayer(this))
+    , m_audioOutput(new QAudioOutput(this))  // создаём QAudioOutput
     , m_waveform(new WaveformView(this))
     , m_spectrum(new SpectrumView(this))
 {
+    // Обязательная связка плеера и аудиовыхода для звука
+    m_player->setAudioOutput(m_audioOutput);
+
     // Панель управления
     auto* tb = addToolBar("Controls");
     QAction* openAct  = tb->addAction("Open WAV");
@@ -72,7 +76,10 @@ MainWindow::MainWindow(QWidget* parent)
     });
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    // Qt сам удалит дочерние объекты, явный delete не нужен
+}
 
 void MainWindow::onOpenFile()
 {
@@ -92,7 +99,7 @@ void MainWindow::onOpenFile()
         return;
     }
 
-    // Запустить воспроизведение
+    // Устанавливаем источник для плеера
     m_player->setSource(QUrl::fromLocalFile(file));
 }
 

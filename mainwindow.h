@@ -1,10 +1,9 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#pragma once
-
 #include <QMainWindow>
 #include <QMediaPlayer>
+#include <QAudioOutput>
 #include <QSlider>
 #include "audiomodel.h"
 #include "waveformview.h"
@@ -25,11 +24,13 @@ private slots:
     void onPositionChanged(qint64 pos);
 
 private:
-    AudioModel*    m_model;
-    QMediaPlayer*  m_player;
-    WaveformView*  m_waveform;
-    SpectrumView*  m_spectrum;
-    QSlider*       m_progressSlider = nullptr;
+    AudioModel*     m_model;
+    QMediaPlayer*   m_player;
+    QAudioOutput*   m_audioOutput;
+    WaveformView*   m_waveform;
+    SpectrumView*   m_spectrum;
+    QSlider*        m_progressSlider;
+    quint32         m_sampleRate = 0;
 };
 
 #endif // MAINWINDOW_H

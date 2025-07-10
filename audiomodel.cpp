@@ -1,8 +1,11 @@
 #include "audiomodel.h"
+
 #include <QFile>
 #include <QDataStream>
+#include <QtEndian>
 #include <QDebug>
-#include <random>
+#include <cmath>
+#include <algorithm>
 
 AudioModel::AudioModel(QObject* parent)
     : QObject(parent)
@@ -10,168 +13,117 @@ AudioModel::AudioModel(QObject* parent)
 
 bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorString)
 {
-    QFile f(filePath);
-    if (!f.open(QIODevice::ReadOnly)) {
-        errorString = QObject::tr("Не удалось открыть файл %1").arg(filePath);
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        errorString = tr("Не удалось открыть файл: %1").arg(filePath);
         emit errorOccurred(errorString);
         return false;
     }
 
-    QDataStream in(&f);
+    QDataStream in(&file);
     in.setByteOrder(QDataStream::LittleEndian);
 
-    // 1) RIFF header
+    // Проверка заголовка RIFF
     char riff[4];
     in.readRawData(riff, 4);
-    if (strncmp(riff, "RIFF", 4) != 0) {
-        errorString = tr("Это не WAV (нет RIFF).");
-        emit errorOccurred(errorString);
-        return false;
-    }
     quint32 riffSize;
     in >> riffSize;
     char wave[4];
     in.readRawData(wave, 4);
-    if (strncmp(wave, "WAVE", 4) != 0) {
-        errorString = tr("Это не WAV (нет WAVE).");
+    if (strncmp(riff, "RIFF", 4) != 0 || strncmp(wave, "WAVE", 4) != 0) {
+        errorString = tr("Файл не является WAV (не найден RIFF/WAVE).");
         emit errorOccurred(errorString);
         return false;
     }
 
-    // 2) Ищем подчанк "fmt "
-    bool fmtFound = false;
-    quint32 fmtChunkSize = 0;
-    quint16 audioFormat = 0;
+    // Поиск чанка fmt
+    quint16 audioFormat = 0, numChannels = 0, bitsPerSample = 0;
+    quint32 sampleRate = 0, byteRate = 0;
     while (!in.atEnd()) {
         char chunkId[4];
-        in.readRawData(chunkId, 4);
+        if (in.readRawData(chunkId, 4) != 4)
+            break;
         quint32 chunkSize;
         in >> chunkSize;
 
         if (strncmp(chunkId, "fmt ", 4) == 0) {
-            fmtFound = true;
-            fmtChunkSize = chunkSize;
+            in >> audioFormat >> numChannels >> sampleRate >> byteRate;
+            quint16 blockAlign;
+            in >> blockAlign >> bitsPerSample;
+
+            if (chunkSize > 16)
+                file.seek(file.pos() + (chunkSize - 16));
             break;
         } else {
-            f.seek(f.pos() + chunkSize);
+            file.seek(file.pos() + chunkSize);
         }
     }
-    if (!fmtFound) {
-        errorString = tr("Чанк fmt не найден.");
+
+    if (audioFormat != 1) {
+        errorString = tr("Поддерживается только PCM WAV.");
         emit errorOccurred(errorString);
         return false;
     }
 
-    // 2.1) Читаем параметры fmt-чана
-    in >> audioFormat;
-    quint16 numChannels;
-    in >> numChannels;
-    quint32 sampleRate;
-    in >> sampleRate;
-    quint32 byteRate;
-    in >> byteRate;
-    quint16 blockAlign;
-    in >> blockAlign;
-    quint16 bitsPerSample;
-    in >> bitsPerSample;
-
-    if (audioFormat != 1) { // 1 = PCM
-        errorString = tr("Поддерживается только несжатый формат PCM.");
-        emit errorOccurred(errorString);
-        return false;
-    }
-
-    if (fmtChunkSize > 16) {
-        f.seek(f.pos() + (fmtChunkSize - 16));
-    }
-
-    // 3) Ищем подчанк "data"
-    bool dataFound = false;
+    // Поиск чанка data
     quint32 dataSize = 0;
     while (!in.atEnd()) {
         char chunkId[4];
-        in.readRawData(chunkId, 4);
+        if (in.readRawData(chunkId, 4) != 4)
+            break;
         quint32 chunkSize;
         in >> chunkSize;
+
         if (strncmp(chunkId, "data", 4) == 0) {
-            dataFound = true;
             dataSize = chunkSize;
             break;
         } else {
-            f.seek(f.pos() + chunkSize);
+            file.seek(file.pos() + chunkSize);
         }
     }
-    if (!dataFound) {
+
+    if (dataSize == 0) {
         errorString = tr("Чанк data не найден.");
         emit errorOccurred(errorString);
         return false;
     }
 
-    // 4) Вычисляем метаданные и сообщаем о них
-    double durationSec = double(dataSize) / double(byteRate);
-    quint32 bitRate = byteRate * 8;
-
-    outMeta.durationSeconds = durationSec;
-    outMeta.sampleRate      = sampleRate;
-    outMeta.byteRate        = byteRate;
-    outMeta.channels        = numChannels;
-    outMeta.bitsPerSample   = bitsPerSample;
-    outMeta.bitRate         = bitRate;
+    // Метаданные
+    const double durationSec = double(dataSize) / byteRate;
+    outMeta = { durationSec, sampleRate, byteRate, numChannels, bitsPerSample, byteRate * 8 };
     emit metadataReady(outMeta);
 
-    // 5) Читаем аудиоданные и генерируем осциллограмму
+    // Чтение данных
     QVector<double> samples;
-    qint64 numSamples = (dataSize / (numChannels * (bitsPerSample / 8)));
-    samples.reserve(numSamples);
+    const int bytesPerSample = bitsPerSample / 8;
+    const qint64 totalSamples = dataSize / (numChannels * bytesPerSample);
+    samples.reserve(totalSamples);
 
-    for (qint64 i = 0; i < numSamples; ++i) {
-        double currentSample = 0.0;
-        for(int j = 0; j < numChannels; ++j) {
+    for (qint64 i = 0; i < totalSamples; ++i) {
+        double sampleSum = 0.0;
+
+        for (int ch = 0; ch < numChannels; ++ch) {
             if (bitsPerSample == 16) {
-                qint16 sampleValue;
-                in >> sampleValue;
-                currentSample += sampleValue;
+                qint16 val;
+                in >> val;
+                sampleSum += val;
             } else if (bitsPerSample == 8) {
-                quint8 sampleValue;
-                in >> sampleValue;
-                currentSample += (sampleValue - 128) * 256; // Приводим к 16 битам
+                quint8 val;
+                in >> val;
+                sampleSum += (val - 128) * 256;
             } else {
-                f.seek(f.pos() + (bitsPerSample / 8)); // Пропускаем
+                file.seek(file.pos() + bytesPerSample);
             }
         }
-        currentSample /= numChannels; // Простое микширование каналов в моно
 
-        // Нормализация в диапазон [-1.0, 1.0]
-        if (bitsPerSample == 16) {
-            samples.append(currentSample / 32768.0);
-        } else if (bitsPerSample == 8) {
-            samples.append(currentSample / 32768.0);
-        }
+        double normalized = sampleSum / (numChannels * 32768.0);
+        samples.append(normalized);
     }
+
     emit waveformReady(samples, sampleRate);
 
-
-    // 6) Расчет спектра (ЗАГЛУШКА)
-    // В реальном проекте здесь должен быть вызов библиотеки FFT (например, kissfft)
-    // Для демонстрации генерируем случайные данные
-    QVector<double> frequencies;
-    QVector<double> amplitudes;
-    int spectrumSize = 1024;
-    frequencies.reserve(spectrumSize);
-    amplitudes.reserve(spectrumSize);
-    std::mt19937 gen(std::random_device{}());
-    std::uniform_real_distribution<> distrib(0, 0.8);
-
-    for(int k = 0; k < spectrumSize; ++k) {
-        frequencies.append(k * double(sampleRate) / (spectrumSize * 2));
-        double amp = distrib(gen);
-        if (k > 50 && k < 200) { // Имитируем пик
-            amp *= (1 - (abs(k - 125)/75.0)) * 1.2;
-        }
-        amplitudes.append(amp);
-    }
-    emit spectrumReady(frequencies, amplitudes);
-
+    // Спектр — вычисляется отдельно (например, через kissfft).
+    emit spectrumReady({}, {}); // пустой — если ещё не реализовано
 
     return true;
 }

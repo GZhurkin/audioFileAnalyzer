@@ -1,18 +1,17 @@
-// waveformview.cpp
 #include "waveformview.h"
 
 #include <QPainter>
-#include <QPainterPath>
-#include <QScrollBar>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QtMath>
 
 WaveformView::WaveformView(QWidget* parent)
-    : QWidget(parent)
-    , m_hScroll(new QScrollBar(Qt::Horizontal, this))
+    : QWidget(parent),
+    m_hScroll(new QScrollBar(Qt::Horizontal, this))
 {
-    connect(m_hScroll, &QScrollBar::valueChanged, this, [this](int){ update(); });
+    connect(m_hScroll, &QScrollBar::valueChanged, this, [this]() {
+        update();
+    });
 }
 
 void WaveformView::setSamples(const QVector<double>& samples, quint32 sampleRate)
@@ -23,15 +22,18 @@ void WaveformView::setSamples(const QVector<double>& samples, quint32 sampleRate
     m_zoom = 1.0;
     m_hScroll->setValue(0);
     updateScroll();
+    updateCachedPath();
     update();
 }
 
 void WaveformView::setMarkerPosition(double seconds)
 {
     double duration = m_sampleRate ? double(m_samples.size()) / m_sampleRate : 0.0;
-    m_markerSec = qBound(0.0, seconds, duration);
-    updateScroll();
-    update();
+    double newMarker = qBound(0.0, seconds, duration);
+    if (!qFuzzyCompare(newMarker, m_markerSec)) {
+        m_markerSec = newMarker;
+        update();
+    }
 }
 
 void WaveformView::paintEvent(QPaintEvent*)
@@ -45,29 +47,26 @@ void WaveformView::paintEvent(QPaintEvent*)
         return;
     }
 
-    int w = width();
-    int h = height() - m_hScroll->height();
-    int offset = m_hScroll->value();
+    const int w = width();
+    const int h = height() - m_hScroll->height();
+    const int offset = m_hScroll->value();
 
-    // samples per pixel
-    double spp = (double(m_samples.size()) / m_zoom) / w;
-
-    // waveform path
-    QPainterPath path;
-    path.moveTo(0, h / 2.0);
-    for (int x = 0; x < w; ++x) {
-        int idx = int((x + offset) * spp);
-        idx = qBound(0, idx, m_samples.size() - 1);
-        double v = m_samples[idx];
-        double y = h / 2.0 - v * (h / 2.0);
-        path.lineTo(x, y);
+    if (offset != m_cachedOffset || QSize(w, h) != m_cachedSize) {
+        updateCachedPath();
+        m_cachedOffset = offset;
+        m_cachedSize = QSize(w, h);
     }
-    p.setPen(QPen(Qt::green, 1));
-    p.drawPath(path);
 
-    // vertical marker
+    // Draw waveform
+    p.setPen(QPen(Qt::green, 1));
+    p.setBrush(QColor(0, 255, 0, 100));
+    p.drawPath(m_cachedPath);
+
+    // Draw marker
+    double spp = (double(m_samples.size()) / m_zoom) / w;
     double markerPx = (m_markerSec * m_sampleRate) / spp - offset;
     int mx = int(markerPx);
+
     p.setPen(QPen(Qt::red, 2));
     p.drawLine(mx, 0, mx, h);
     p.setPen(Qt::white);
@@ -78,6 +77,7 @@ void WaveformView::resizeEvent(QResizeEvent*)
 {
     m_hScroll->setGeometry(0, height() - m_hScroll->height(), width(), m_hScroll->height());
     updateScroll();
+    updateCachedPath();
 }
 
 void WaveformView::mousePressEvent(QMouseEvent* ev)
@@ -102,33 +102,25 @@ void WaveformView::mouseReleaseEvent(QMouseEvent*)
 void WaveformView::wheelEvent(QWheelEvent* ev)
 {
     if (ev->modifiers() & Qt::ControlModifier) {
-        // позиция курсора внутри виджета
         double cursorX = ev->position().x();
         int w = width();
         if (w <= 0 || m_samples.isEmpty())
             return;
 
-        // старый samples-per-pixel
         double sampleCount = double(m_samples.size());
         double sppOld = sampleCount / (m_zoom * w);
         int oldOffset = m_hScroll->value();
-
-        // вычисляем, какой sample попадёт под курсор
         double sampleIndex = (oldOffset + cursorX) * sppOld;
 
-        // новый зум
         double delta = ev->angleDelta().y() > 0 ? 1.1 : 0.9;
-        double newZoom = qBound(m_minZoom, m_zoom * delta, m_maxZoom);
-        m_zoom = newZoom;
+        m_zoom = qBound(m_minZoom, m_zoom * delta, m_maxZoom);
 
-        // новый spp
         double sppNew = sampleCount / (m_zoom * w);
-
-        // вычисляем новый оффсет, чтобы тот же sample остался под курсором
         double newOffset = sampleIndex / sppNew - cursorX;
 
         updateScroll();
         m_hScroll->setValue(int(newOffset));
+        updateCachedPath();
         update();
 
         ev->accept();
@@ -143,9 +135,11 @@ void WaveformView::updateScroll()
         m_hScroll->setRange(0, 0);
         return;
     }
+
     int w = width();
     double totalPx = double(m_samples.size()) / m_zoom;
     int maxScroll = qMax(0, int(totalPx - w));
+
     m_hScroll->setRange(0, maxScroll);
     m_hScroll->setPageStep(w);
     m_hScroll->setValue(qBound(0, m_hScroll->value(), maxScroll));
@@ -154,11 +148,51 @@ void WaveformView::updateScroll()
 void WaveformView::updateMarkerFromPos(int x)
 {
     int w = width();
-    if (w <= 0 || m_sampleRate == 0) return;
+    if (w <= 0 || m_sampleRate == 0)
+        return;
 
     int offset = m_hScroll->value();
     double spp = (double(m_samples.size()) / m_zoom) / w;
     double posSec = ((offset + x) * spp) / m_sampleRate;
+
     setMarkerPosition(posSec);
     emit markerPositionChanged(m_markerSec);
+}
+
+void WaveformView::updateCachedPath()
+{
+    m_cachedPath = QPainterPath();
+
+    const int w = width();
+    const int h = height() - m_hScroll->height();
+    const int offset = m_hScroll->value();
+
+    if (w <= 0 || h <= 0 || m_samples.isEmpty())
+        return;
+
+    double spp = (double(m_samples.size()) / m_zoom) / w;
+    QVector<double> maxVals(w, -1.0);
+    QVector<double> minVals(w, 1.0);
+
+    for (int x = 0; x < w; ++x) {
+        int startIdx = int((x + offset) * spp);
+        int endIdx = int((x + offset + 1) * spp);
+        startIdx = qBound(0, startIdx, m_samples.size() - 1);
+        endIdx = qBound(startIdx + 1, endIdx, m_samples.size());
+
+        for (int i = startIdx; i < endIdx; ++i) {
+            double v = m_samples[i];
+            maxVals[x] = qMax(maxVals[x], v);
+            minVals[x] = qMin(minVals[x], v);
+        }
+    }
+
+    m_cachedPath.moveTo(0, h / 2.0 - maxVals[0] * (h / 2.0));
+    for (int x = 1; x < w; ++x) {
+        m_cachedPath.lineTo(x, h / 2.0 - maxVals[x] * (h / 2.0));
+    }
+    for (int x = w - 1; x >= 0; --x) {
+        m_cachedPath.lineTo(x, h / 2.0 - minVals[x] * (h / 2.0));
+    }
+    m_cachedPath.closeSubpath();
 }

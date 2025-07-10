@@ -1,4 +1,3 @@
-// waveformview.h
 #pragma once
 #ifndef WAVEFORMVIEW_H
 #define WAVEFORMVIEW_H
@@ -6,20 +5,22 @@
 #include <QWidget>
 #include <QVector>
 #include <QScrollBar>
+#include <QPainterPath>
 
 class WaveformView : public QWidget {
     Q_OBJECT
+
 public:
     explicit WaveformView(QWidget* parent = nullptr);
 
 public slots:
-    // samples — нормированные амплитуды [-1..1]
+
     void setSamples(const QVector<double>& samples, quint32 sampleRate);
-    // seconds — текущее время воспроизведения
+
     void setMarkerPosition(double seconds);
 
 signals:
-    // Сигнал при перетаскивании маркера мышью
+
     void markerPositionChanged(double seconds);
 
 protected:
@@ -28,7 +29,6 @@ protected:
     void mousePressEvent(QMouseEvent* ev) override;
     void mouseMoveEvent(QMouseEvent* ev) override;
     void mouseReleaseEvent(QMouseEvent* ev) override;
-    // Горизонтальный зум (Ctrl + колесо)
     void wheelEvent(QWheelEvent* ev) override;
 
 private:
@@ -36,7 +36,6 @@ private:
     quint32 m_sampleRate = 0;
     double m_markerSec = 0.0;
 
-    // текущий масштаб (1.0 = 100%)
     double m_zoom = 1.0;
     const double m_minZoom = 0.5;
     const double m_maxZoom = 10.0;
@@ -44,8 +43,13 @@ private:
     QScrollBar* m_hScroll = nullptr;
     bool m_draggingMarker = false;
 
+    QPainterPath m_cachedPath;
+    int m_cachedOffset = -1;
+    QSize m_cachedSize;
+
     void updateScroll();
     void updateMarkerFromPos(int x);
+    void updateCachedPath();
 };
 
 #endif // WAVEFORMVIEW_H
