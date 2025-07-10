@@ -18,11 +18,9 @@ public:
     ~SpectrumView() override = default;
 
 public slots:
-    // 1.2.2.1 Отображение спектра
     void setSpectrum(const QVector<double>& freq, const QVector<double>& amp);
 
 protected:
-    // 1.2.2.2 Зум и сброс
     void mouseReleaseEvent(QMouseEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
 

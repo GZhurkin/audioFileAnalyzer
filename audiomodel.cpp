@@ -1,11 +1,14 @@
 #include "audiomodel.h"
-
 #include <QFile>
 #include <QDataStream>
-#include <QtEndian>
 #include <QDebug>
+#include <cstring>
 #include <cmath>
-#include <algorithm>
+
+extern "C" {
+#include "kissfft/kiss_fft.h"
+#include "kissfft/kiss_fftr.h"
+}
 
 AudioModel::AudioModel(QObject* parent)
     : QObject(parent)
@@ -13,117 +16,236 @@ AudioModel::AudioModel(QObject* parent)
 
 bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorString)
 {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        errorString = tr("Не удалось открыть файл: %1").arg(filePath);
+    QFile f(filePath);
+    if (!f.open(QIODevice::ReadOnly)) {
+        errorString = tr("Не удалось открыть файл %1").arg(filePath);
         emit errorOccurred(errorString);
         return false;
     }
 
-    QDataStream in(&file);
+    QDataStream in(&f);
     in.setByteOrder(QDataStream::LittleEndian);
 
-    // Проверка заголовка RIFF
+    // RIFF header
     char riff[4];
     in.readRawData(riff, 4);
+    if (std::strncmp(riff, "RIFF", 4) != 0) {
+        errorString = tr("Это не WAV (нет RIFF).");
+        emit errorOccurred(errorString);
+        return false;
+    }
+
     quint32 riffSize;
     in >> riffSize;
+
     char wave[4];
     in.readRawData(wave, 4);
-    if (strncmp(riff, "RIFF", 4) != 0 || strncmp(wave, "WAVE", 4) != 0) {
-        errorString = tr("Файл не является WAV (не найден RIFF/WAVE).");
+    if (std::strncmp(wave, "WAVE", 4) != 0) {
+        errorString = tr("Это не WAV (нет WAVE).");
         emit errorOccurred(errorString);
         return false;
     }
 
-    // Поиск чанка fmt
-    quint16 audioFormat = 0, numChannels = 0, bitsPerSample = 0;
-    quint32 sampleRate = 0, byteRate = 0;
+    // Find fmt chunk
+    bool fmtFound = false;
+    quint32 fmtChunkSize = 0;
+    quint16 audioFormat = 0;
+
     while (!in.atEnd()) {
         char chunkId[4];
-        if (in.readRawData(chunkId, 4) != 4)
-            break;
+        in.readRawData(chunkId, 4);
         quint32 chunkSize;
         in >> chunkSize;
-
-        if (strncmp(chunkId, "fmt ", 4) == 0) {
-            in >> audioFormat >> numChannels >> sampleRate >> byteRate;
-            quint16 blockAlign;
-            in >> blockAlign >> bitsPerSample;
-
-            if (chunkSize > 16)
-                file.seek(file.pos() + (chunkSize - 16));
+        if (std::strncmp(chunkId, "fmt ", 4) == 0) {
+            fmtFound = true;
+            fmtChunkSize = chunkSize;
             break;
         } else {
-            file.seek(file.pos() + chunkSize);
+            f.seek(f.pos() + chunkSize);
         }
     }
-
-    if (audioFormat != 1) {
-        errorString = tr("Поддерживается только PCM WAV.");
+    if (!fmtFound) {
+        errorString = tr("Чанк fmt не найден.");
         emit errorOccurred(errorString);
         return false;
     }
 
-    // Поиск чанка data
+    in >> audioFormat;
+
+    quint16 numChannels;
+    in >> numChannels;
+
+    quint32 sampleRate;
+    in >> sampleRate;
+
+    quint32 byteRate;
+    in >> byteRate;
+
+    quint16 blockAlign;
+    in >> blockAlign;
+
+    quint16 bitsPerSample;
+    in >> bitsPerSample;
+
+    if (audioFormat != 1) { // PCM only
+        errorString = tr("Поддерживается только несжатый формат PCM.");
+        emit errorOccurred(errorString);
+        return false;
+    }
+
+    if (fmtChunkSize > 16) {
+        f.seek(f.pos() + (fmtChunkSize - 16));
+    }
+
+    // Find data chunk
+    bool dataFound = false;
     quint32 dataSize = 0;
+
     while (!in.atEnd()) {
         char chunkId[4];
-        if (in.readRawData(chunkId, 4) != 4)
-            break;
+        in.readRawData(chunkId, 4);
         quint32 chunkSize;
         in >> chunkSize;
-
-        if (strncmp(chunkId, "data", 4) == 0) {
+        if (std::strncmp(chunkId, "data", 4) == 0) {
+            dataFound = true;
             dataSize = chunkSize;
             break;
         } else {
-            file.seek(file.pos() + chunkSize);
+            f.seek(f.pos() + chunkSize);
         }
     }
-
-    if (dataSize == 0) {
+    if (!dataFound) {
         errorString = tr("Чанк data не найден.");
         emit errorOccurred(errorString);
         return false;
     }
 
-    // Метаданные
-    const double durationSec = double(dataSize) / byteRate;
-    outMeta = { durationSec, sampleRate, byteRate, numChannels, bitsPerSample, byteRate * 8 };
+    double durationSec = double(dataSize) / double(byteRate);
+    quint32 bitRate = byteRate * 8;
+
+    outMeta.durationSeconds = durationSec;
+    outMeta.sampleRate      = sampleRate;
+    outMeta.byteRate        = byteRate;
+    outMeta.channels        = numChannels;
+    outMeta.bitsPerSample   = bitsPerSample;
+    outMeta.bitRate         = bitRate;
+
     emit metadataReady(outMeta);
 
-    // Чтение данных
     QVector<double> samples;
-    const int bytesPerSample = bitsPerSample / 8;
-    const qint64 totalSamples = dataSize / (numChannels * bytesPerSample);
-    samples.reserve(totalSamples);
+    qint64 numSamples = dataSize / (numChannels * (bitsPerSample / 8));
+    samples.reserve(numSamples);
 
-    for (qint64 i = 0; i < totalSamples; ++i) {
-        double sampleSum = 0.0;
-
+    for (qint64 i = 0; i < numSamples; ++i) {
+        double currentSample = 0.0;
         for (int ch = 0; ch < numChannels; ++ch) {
             if (bitsPerSample == 16) {
                 qint16 val;
                 in >> val;
-                sampleSum += val;
+                currentSample += val;
             } else if (bitsPerSample == 8) {
                 quint8 val;
                 in >> val;
-                sampleSum += (val - 128) * 256;
+                currentSample += (val - 128) * 256;
             } else {
-                file.seek(file.pos() + bytesPerSample);
+                f.seek(f.pos() + (bitsPerSample / 8));
             }
         }
+        currentSample /= numChannels;
 
-        double normalized = sampleSum / (numChannels * 32768.0);
-        samples.append(normalized);
+        samples.append(currentSample / 32768.0);
     }
 
     emit waveformReady(samples, sampleRate);
 
-    // Спектр — вычисляется отдельно (например, через kissfft).
-    emit spectrumReady({}, {}); // пустой — если ещё не реализовано
+    calculateSpectrum(samples, sampleRate);
+    calculateSpectrogram(samples, sampleRate);
 
     return true;
+}
+
+void AudioModel::calculateSpectrum(const QVector<double>& samples, quint32 sampleRate)
+{
+    const int fftSize = 2048;
+    int n = qMin(samples.size(), fftSize);
+
+    kiss_fft_cfg cfg = kiss_fft_alloc(fftSize, 0, nullptr, nullptr);
+    if (!cfg) {
+        emit errorOccurred(tr("Не удалось инициализировать kissfft"));
+        return;
+    }
+
+    QVector<kiss_fft_cpx> input(fftSize);
+    QVector<kiss_fft_cpx> output(fftSize);
+
+    for (int i = 0; i < fftSize; ++i) {
+        input[i].r = (i < n) ? samples[i] : 0.0;
+        input[i].i = 0.0;
+    }
+
+    kiss_fft(cfg, input.data(), output.data());
+
+    QVector<double> frequencies;
+    QVector<double> amplitudes;
+
+    frequencies.reserve(fftSize / 2);
+    amplitudes.reserve(fftSize / 2);
+
+    for (int i = 0; i < fftSize / 2; ++i) {
+        double freq = i * double(sampleRate) / fftSize;
+        double amp = std::sqrt(output[i].r * output[i].r + output[i].i * output[i].i);
+        frequencies.append(freq);
+        amplitudes.append(amp);
+    }
+
+    free(cfg);
+
+    emit spectrumReady(frequencies, amplitudes);
+}
+
+void AudioModel::calculateSpectrogram(const QVector<double>& samples, quint32 sampleRate)
+{
+    const int fftSize = 512;
+    const int hopSize = fftSize / 2;
+    int numFrames = (samples.size() - fftSize) / hopSize;
+    if (numFrames <= 0) return;
+
+    kiss_fft_cfg cfg = kiss_fft_alloc(fftSize, 0, nullptr, nullptr);
+    if (!cfg) {
+        emit errorOccurred(tr("Не удалось инициализировать kissfft"));
+        return;
+    }
+
+    QVector<QVector<double>> spectrogram;
+    spectrogram.reserve(numFrames);
+
+    QVector<kiss_fft_cpx> input(fftSize);
+    QVector<kiss_fft_cpx> output(fftSize);
+
+    QVector<double> window(fftSize);
+    for (int i = 0; i < fftSize; ++i) {
+        window[i] = 0.5 * (1 - cos(2 * M_PI * i / (fftSize - 1)));
+    }
+
+    for (int frame = 0; frame < numFrames; ++frame) {
+        int offset = frame * hopSize;
+        for (int i = 0; i < fftSize; ++i) {
+            input[i].r = samples[offset + i] * window[i];
+            input[i].i = 0.0;
+        }
+        kiss_fft(cfg, input.data(), output.data());
+
+        QVector<double> magnitudes(fftSize / 2);
+        for (int i = 0; i < fftSize / 2; ++i) {
+            double re = output[i].r;
+            double im = output[i].i;
+            magnitudes[i] = sqrt(re * re + im * im);
+        }
+
+        spectrogram.append(magnitudes);
+    }
+
+    free(cfg);
+
+    emit spectrogramReady(spectrogram);
 }

@@ -1,0 +1,41 @@
+#pragma once
+#ifndef SPECTROGRAMVIEW_H
+#define SPECTROGRAMVIEW_H
+
+#include <QWidget>
+#include <QImage>
+#include <QVector>
+#include <QMutex>
+
+class SpectrogramView : public QWidget
+{
+    Q_OBJECT
+
+public:
+    explicit SpectrogramView(QWidget* parent = nullptr);
+    ~SpectrogramView() override = default;
+
+public slots:
+    void addSpectrumSlice(const QVector<double>& freqBins, const QVector<double>& magnitudes);
+    void clear();
+
+    // Добавлен метод для установки всей спектрограммы целиком
+    void setSpectrogramData(const QVector<QVector<double>>& data);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+
+private:
+    QImage m_image;
+    int m_maxTimeSlices = 500; // макс количество столбцов по времени
+    int m_freqBinCount = 0;
+
+    QVector<QVector<double>> m_spectrogramData; // Хранит амплитуды [время][частота]
+    QMutex m_mutex;
+
+    void updateImage();
+    QColor magnitudeToColor(double magnitude) const;
+};
+
+#endif // SPECTROGRAMVIEW_H

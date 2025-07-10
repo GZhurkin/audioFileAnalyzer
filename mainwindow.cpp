@@ -5,20 +5,18 @@
 #include <QVBoxLayout>
 #include <QMessageBox>
 #include <QUrl>
-#include <QSlider>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
     , m_model(new AudioModel(this))
     , m_player(new QMediaPlayer(this))
-    , m_audioOutput(new QAudioOutput(this))  // создаём QAudioOutput
+    , m_audioOutput(new QAudioOutput(this))
     , m_waveform(new WaveformView(this))
     , m_spectrum(new SpectrumView(this))
+    , m_spectrogram(new SpectrogramView(this))
 {
-    // Обязательная связка плеера и аудиовыхода для звука
     m_player->setAudioOutput(m_audioOutput);
 
-    // Панель управления
     auto* tb = addToolBar("Controls");
     QAction* openAct  = tb->addAction("Open WAV");
     QAction* playAct  = tb->addAction("Play");
@@ -30,27 +28,27 @@ MainWindow::MainWindow(QWidget* parent)
     connect(pauseAct, &QAction::triggered, m_player,           &QMediaPlayer::pause);
     connect(stopAct,  &QAction::triggered, m_player,           &QMediaPlayer::stop);
 
-    // Добавляем прогресс-бар (ползунок)
     m_progressSlider = new QSlider(Qt::Horizontal, this);
     m_progressSlider->setRange(0, 100);
     m_progressSlider->setValue(0);
 
-    // Центральный вид
     auto* central = new QWidget(this);
     auto* layout  = new QVBoxLayout(central);
+
     layout->addWidget(m_waveform, 2);
     layout->addWidget(m_progressSlider, 0);
     layout->addWidget(m_spectrum, 1);
+    layout->addWidget(m_spectrogram, 2); // Добавляем спектрограмму
+
     setCentralWidget(central);
 
-    // Сигналы/слоты
-    connect(m_model,   &AudioModel::metadataReady, this, &MainWindow::onMetadataReady);
-    connect(m_model,   &AudioModel::waveformReady, this, &MainWindow::onWaveformReady);
-    connect(m_model,   &AudioModel::spectrumReady, this, &MainWindow::onSpectrumReady);
-    connect(m_model,   &AudioModel::errorOccurred, this, &MainWindow::onError);
-    connect(m_player,  &QMediaPlayer::positionChanged, this, &MainWindow::onPositionChanged);
+    connect(m_model,   &AudioModel::metadataReady,    this, &MainWindow::onMetadataReady);
+    connect(m_model,   &AudioModel::waveformReady,    this, &MainWindow::onWaveformReady);
+    connect(m_model,   &AudioModel::spectrumReady,    this, &MainWindow::onSpectrumReady);
+    connect(m_model,   &AudioModel::spectrogramReady, this, &MainWindow::onSpectrogramReady);
+    connect(m_model,   &AudioModel::errorOccurred,    this, &MainWindow::onError);
+    connect(m_player,  &QMediaPlayer::positionChanged,this, &MainWindow::onPositionChanged);
 
-    // Синхронизация маркера волновой формы с плеером и слайдером
     connect(m_waveform, &WaveformView::markerPositionChanged, this, [this](double seconds) {
         qint64 posMs = static_cast<qint64>(seconds * 1000);
         if (m_player->position() != posMs) {
@@ -63,7 +61,6 @@ MainWindow::MainWindow(QWidget* parent)
         }
     });
 
-    // Синхронизация движения слайдера с плеером и маркером
     connect(m_progressSlider, &QSlider::sliderMoved, this, [this](int value){
         if (m_player->duration() > 0) {
             qint64 newPos = (value * m_player->duration()) / 100;
@@ -78,7 +75,7 @@ MainWindow::MainWindow(QWidget* parent)
 
 MainWindow::~MainWindow()
 {
-    // Qt сам удалит дочерние объекты, явный delete не нужен
+    // Дочерние объекты удаляются автоматически
 }
 
 void MainWindow::onOpenFile()
@@ -86,20 +83,18 @@ void MainWindow::onOpenFile()
     const QString file = QFileDialog::getOpenFileName(this, "Select WAV", {}, "WAV Files (*.wav)");
     if (file.isEmpty()) return;
 
-    // Очищаем предыдущие данные
     m_waveform->setSamples({}, 0);
     m_spectrum->setSpectrum({}, {});
+    m_spectrogram->setSpectrogramData({});
     m_progressSlider->setValue(0);
     setWindowTitle("Audio File Analyzer");
 
     AudioModel::Meta meta;
     QString err;
     if (!m_model->loadWav(file, meta, err)) {
-        // Ошибка уже показана через сигнал errorOccurred
         return;
     }
 
-    // Устанавливаем источник для плеера
     m_player->setSource(QUrl::fromLocalFile(file));
 }
 
@@ -123,6 +118,11 @@ void MainWindow::onSpectrumReady(const QVector<double>& freq, const QVector<doub
     m_spectrum->setSpectrum(freq, amp);
 }
 
+void MainWindow::onSpectrogramReady(const QVector<QVector<double>>& frames)
+{
+    m_spectrogram->setSpectrogramData(frames);
+}
+
 void MainWindow::onError(const QString& err)
 {
     QMessageBox::critical(this, "Error", err);
@@ -132,10 +132,8 @@ void MainWindow::onPositionChanged(qint64 pos)
 {
     double seconds = pos / 1000.0;
 
-    // Обновить маркер, если позиция изменилась
     m_waveform->setMarkerPosition(seconds);
 
-    // Обновить слайдер
     if (m_player->duration() > 0) {
         int sliderVal = static_cast<int>((pos * 100) / m_player->duration());
         if (m_progressSlider->value() != sliderVal)

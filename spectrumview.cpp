@@ -6,8 +6,8 @@ SpectrumView::SpectrumView(QWidget* parent)
     : QChartView(new QChart(), parent)
     , m_series(new QSplineSeries(this))
     , m_axisX(new QValueAxis(this))
-    , m_axisY(new QValueAxis(this)) {
-
+    , m_axisY(new QValueAxis(this))
+{
     QChart* chartObj = chart();
     chartObj->addSeries(m_series);
 
@@ -20,7 +20,7 @@ SpectrumView::SpectrumView(QWidget* parent)
     m_series->attachAxis(m_axisY);
 
     setRenderHint(QPainter::Antialiasing);
-    setRubberBand(QChartView::RectangleRubberBand); // Область выделения для зума
+    setRubberBand(QChartView::RectangleRubberBand);
 }
 
 void SpectrumView::ensureNonZeroRange(double& min, double& max, double padding) {
