@@ -7,6 +7,13 @@
 #include <QVector>
 #include <QMutex>
 
+/**
+ * Виджет для отображения спектрограммы.
+ *
+ * Спектрограмма представляет собой визуализацию частотного спектра
+ * аудио с течением времени. Каждый столбец — спектр на одном временном срезе.
+ * Для отображения используется QImage, который обновляется при добавлении новых данных.
+ */
 class SpectrogramView : public QWidget
 {
     Q_OBJECT
@@ -16,10 +23,21 @@ public:
     ~SpectrogramView() override = default;
 
 public slots:
+    /**
+     * Добавить один срез спектра (полосы частот и амплитуды).
+     * freqBins - массив частотных полос (используется только размер)
+     * magnitudes - амплитуды для каждой полосы частот
+     *
+     * Требует, чтобы freqBins и magnitudes имели одинаковую длину.
+     * Сохраняет срез, поддерживает ограничение по числу срезов.
+     * Обновляет изображение и виджет.
+     */
     void addSpectrumSlice(const QVector<double>& freqBins, const QVector<double>& magnitudes);
+
+    /// Очистить данные спектрограммы и изображение
     void clear();
 
-    // Добавлен метод для установки всей спектрограммы целиком
+    /// Установить всю спектрограмму целиком (вектор векторов амплитуд)
     void setSpectrogramData(const QVector<QVector<double>>& data);
 
 protected:
@@ -27,14 +45,18 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
-    QImage m_image;
-    int m_maxTimeSlices = 500; // макс количество столбцов по времени
-    int m_freqBinCount = 0;
+    QImage m_image; ///< Кэшированное изображение спектрограммы для отрисовки
+    int m_maxTimeSlices = 500; ///< Максимальное число временных срезов (столбцов)
 
-    QVector<QVector<double>> m_spectrogramData; // Хранит амплитуды [время][частота]
-    QMutex m_mutex;
+    int m_freqBinCount = 0; ///< Количество частотных полос (высота спектрограммы)
 
+    QVector<QVector<double>> m_spectrogramData; ///< Данные амплитуд: [время][частота]
+    QMutex m_mutex; ///< Мьютекс для потокобезопасности при обновлении данных
+
+    /// Пересчитать изображение спектрограммы на основе данных m_spectrogramData
     void updateImage();
+
+    /// Преобразовать амплитуду в цвет (например, оттенок желтого)
     QColor magnitudeToColor(double magnitude) const;
 };
 
