@@ -2,30 +2,30 @@
 #ifndef SPECTROGRAMVIEW_H
 #define SPECTROGRAMVIEW_H
 
-#include <QWidget>
 #include <QImage>
-#include <QVector>
 #include <QMutex>
+#include <QVector>
+#include <QWidget>
 
 class SpectrogramView : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit SpectrogramView(QWidget* parent = nullptr);
+    explicit SpectrogramView(QWidget *parent = nullptr);
     ~SpectrogramView() override = default;
 
 public slots:
 
-    void addSpectrumSlice(const QVector<double>& freqBins, const QVector<double>& magnitudes);
+    void addSpectrumSlice(const QVector<double> &freqBins, const QVector<double> &magnitudes);
 
     void clear();
 
-    void setSpectrogramData(const QVector<QVector<double>>& data);
+    void setSpectrogramData(const QVector<QVector<double>> &data);
 
 protected:
-    void paintEvent(QPaintEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
+    void paintEvent(QPaintEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     QImage m_image;

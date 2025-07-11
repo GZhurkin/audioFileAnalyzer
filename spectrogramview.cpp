@@ -4,13 +4,14 @@
 #include <algorithm>
 #include <cmath>
 
-SpectrogramView::SpectrogramView(QWidget* parent)
+SpectrogramView::SpectrogramView(QWidget *parent)
     : QWidget(parent)
 {
     setMinimumHeight(150);
 }
 
-void SpectrogramView::addSpectrumSlice(const QVector<double>& freqBins, const QVector<double>& magnitudes)
+void SpectrogramView::addSpectrumSlice(const QVector<double> &freqBins,
+                                       const QVector<double> &magnitudes)
 {
     QMutexLocker locker(&m_mutex);
 
@@ -32,7 +33,7 @@ void SpectrogramView::addSpectrumSlice(const QVector<double>& freqBins, const QV
     update();
 }
 
-void SpectrogramView::setSpectrogramData(const QVector<QVector<double>>& data)
+void SpectrogramView::setSpectrogramData(const QVector<QVector<double>> &data)
 {
     QMutexLocker locker(&m_mutex);
 
@@ -52,7 +53,7 @@ void SpectrogramView::clear()
     update();
 }
 
-void SpectrogramView::paintEvent(QPaintEvent*)
+void SpectrogramView::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
     painter.fillRect(rect(), Qt::black);
@@ -68,7 +69,7 @@ void SpectrogramView::paintEvent(QPaintEvent*)
     painter.drawImage(rect(), m_image);
 }
 
-void SpectrogramView::resizeEvent(QResizeEvent* event)
+void SpectrogramView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
     updateImage();
@@ -85,7 +86,7 @@ void SpectrogramView::updateImage()
     QImage img(width, height, QImage::Format_RGB32);
 
     for (int x = 0; x < width; ++x) {
-        const QVector<double>& magnitudes = m_spectrogramData[x];
+        const QVector<double> &magnitudes = m_spectrogramData[x];
         for (int y = 0; y < height; ++y) {
             int imgY = height - 1 - y;
             QColor col = magnitudeToColor(magnitudes[y]);

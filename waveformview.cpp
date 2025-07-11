@@ -1,12 +1,12 @@
 #include "waveformview.h"
-#include <QPainter>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QWheelEvent>
 #include <QtMath>
 
-WaveformView::WaveformView(QWidget* parent)
-    : QWidget(parent),
-    m_hScroll(new QScrollBar(Qt::Horizontal, this))
+WaveformView::WaveformView(QWidget *parent)
+    : QWidget(parent)
+    , m_hScroll(new QScrollBar(Qt::Horizontal, this))
 {
     connect(m_hScroll, &QScrollBar::valueChanged, this, [this]() {
         updateCachedPath();
@@ -14,7 +14,7 @@ WaveformView::WaveformView(QWidget* parent)
     });
 }
 
-void WaveformView::setSamples(const QVector<double>& samples, quint32 sampleRate)
+void WaveformView::setSamples(const QVector<double> &samples, quint32 sampleRate)
 {
     m_samples = samples;
     m_sampleRate = sampleRate;
@@ -38,7 +38,7 @@ void WaveformView::setMarkerPosition(double seconds)
     }
 }
 
-void WaveformView::paintEvent(QPaintEvent*)
+void WaveformView::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
     p.fillRect(rect(), Qt::black);
@@ -75,14 +75,14 @@ void WaveformView::paintEvent(QPaintEvent*)
     }
 }
 
-void WaveformView::resizeEvent(QResizeEvent*)
+void WaveformView::resizeEvent(QResizeEvent *)
 {
     m_hScroll->setGeometry(0, height() - m_hScroll->height(), width(), m_hScroll->height());
     updateScroll();
     updateCachedPath();
 }
 
-void WaveformView::mousePressEvent(QMouseEvent* ev)
+void WaveformView::mousePressEvent(QMouseEvent *ev)
 {
     if (ev->button() == Qt::LeftButton) {
         m_draggingMarker = true;
@@ -90,18 +90,18 @@ void WaveformView::mousePressEvent(QMouseEvent* ev)
     }
 }
 
-void WaveformView::mouseMoveEvent(QMouseEvent* ev)
+void WaveformView::mouseMoveEvent(QMouseEvent *ev)
 {
     if (m_draggingMarker)
         updateMarkerFromPos(int(ev->position().x()));
 }
 
-void WaveformView::mouseReleaseEvent(QMouseEvent*)
+void WaveformView::mouseReleaseEvent(QMouseEvent *)
 {
     m_draggingMarker = false;
 }
 
-void WaveformView::wheelEvent(QWheelEvent* ev)
+void WaveformView::wheelEvent(QWheelEvent *ev)
 {
     if (ev->modifiers() & Qt::ControlModifier) {
         double cursorX = ev->position().x();
@@ -143,7 +143,8 @@ void WaveformView::updateScroll()
     }
 
     int w = width();
-    if (w <= 0) return;
+    if (w <= 0)
+        return;
 
     double samplesPerPixel = double(m_samples.size()) / (m_zoom * w);
     int totalVisiblePx = int(double(m_samples.size()) / samplesPerPixel);
@@ -189,7 +190,8 @@ void WaveformView::updateCachedPath()
     int totalPx = int(double(m_samples.size()) / spp);
 
     int endX = qMin(viewWidth, totalPx - offset);
-    if (endX <= 0) return;
+    if (endX <= 0)
+        return;
 
     QVector<double> maxVals(endX, -1.0);
     QVector<double> minVals(endX, 1.0);

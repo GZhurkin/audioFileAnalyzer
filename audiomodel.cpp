@@ -1,7 +1,7 @@
 #include "audiomodel.h"
-#include <QFile>
 #include <QDataStream>
 #include <QDebug>
+#include <QFile>
 #include <cmath>
 #include <cstring>
 
@@ -10,11 +10,11 @@ extern "C" {
 #include "kissfft/kiss_fftr.h"
 }
 
-AudioModel::AudioModel(QObject* parent)
+AudioModel::AudioModel(QObject *parent)
     : QObject(parent)
 {}
 
-bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorString)
+bool AudioModel::loadWav(const QString &filePath, Meta &outMeta, QString &errorString)
 {
     QFile f(filePath);
     if (!f.open(QIODevice::ReadOnly)) {
@@ -115,7 +115,7 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
     double durationSec = double(dataSize) / byteRate;
     quint32 bitRate = byteRate * 8;
 
-    outMeta = { durationSec, sampleRate, byteRate, numChannels, bitsPerSample, bitRate };
+    outMeta = {durationSec, sampleRate, byteRate, numChannels, bitsPerSample, bitRate};
     emit metadataReady(outMeta);
 
     QVector<double> samples;
@@ -149,7 +149,7 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
     return true;
 }
 
-void AudioModel::calculateSpectrum(const QVector<double>& samples, quint32 sampleRate)
+void AudioModel::calculateSpectrum(const QVector<double> &samples, quint32 sampleRate)
 {
     const int fftSize = 2048;
     int n = qMin(samples.size(), fftSize);
@@ -188,12 +188,13 @@ void AudioModel::calculateSpectrum(const QVector<double>& samples, quint32 sampl
     emit spectrumReady(frequencies, amplitudes);
 }
 
-void AudioModel::calculateSpectrogram(const QVector<double>& samples, quint32 sampleRate)
+void AudioModel::calculateSpectrogram(const QVector<double> &samples, quint32 sampleRate)
 {
     const int fftSize = 512;
     const int hopSize = fftSize / 2;
     int numFrames = (samples.size() - fftSize) / hopSize;
-    if (numFrames <= 0) return;
+    if (numFrames <= 0)
+        return;
 
     kiss_fft_cfg cfg = kiss_fft_alloc(fftSize, 0, nullptr, nullptr);
     if (!cfg) {
