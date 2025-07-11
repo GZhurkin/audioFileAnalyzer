@@ -1,22 +1,20 @@
 #include "waveformview.h"
-
 #include <QPainter>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QtMath>
 
-// Конструктор. Создаём горизонтальный скроллбар и подключаем обновление отображения
 WaveformView::WaveformView(QWidget* parent)
     : QWidget(parent),
     m_hScroll(new QScrollBar(Qt::Horizontal, this))
 {
+    // Обновляем кэш и перерисовываем при изменении положения скроллбара
     connect(m_hScroll, &QScrollBar::valueChanged, this, [this]() {
-        updateCachedPath(); // Перерисовываем waveform при изменении скролла
-        update();           // Триггерим paintEvent
+        updateCachedPath();
+        update();
     });
 }
 
-// Установка новых сэмплов и частоты дискретизации
 void WaveformView::setSamples(const QVector<double>& samples, quint32 sampleRate)
 {
     m_samples = samples;
@@ -25,42 +23,39 @@ void WaveformView::setSamples(const QVector<double>& samples, quint32 sampleRate
     m_zoom = 1.0;
     m_hScroll->setValue(0);
 
-    updateScroll();       // Пересчитываем границы скролла
-    updateCachedPath();   // Кэшируем новую форму сигнала
+    updateScroll();       // Обновляем параметры скроллбара
+    updateCachedPath();   // Обновляем путь осциллограммы
     update();             // Перерисовываем виджет
 }
 
-// Устанавливаем маркер в заданное время (в секундах)
 void WaveformView::setMarkerPosition(double seconds)
 {
     double duration = m_sampleRate ? double(m_samples.size()) / m_sampleRate : 0.0;
     double newMarker = qBound(0.0, seconds, duration);
 
-    // Обновляем только если позиция действительно изменилась
     if (!qFuzzyCompare(newMarker, m_markerSec)) {
         m_markerSec = newMarker;
-        update(); // Перерисовываем маркер
+        update();  // Перерисовываем маркер
     }
 }
 
-// Основная отрисовка виджета
 void WaveformView::paintEvent(QPaintEvent*)
 {
     QPainter p(this);
-    p.fillRect(rect(), Qt::black); // Фон
+    p.fillRect(rect(), Qt::black);
 
+    // Показываем заглушку, если данные отсутствуют
     if (m_samples.isEmpty() || m_sampleRate == 0) {
-        // Если данные не загружены — пишем сообщение
         p.setPen(Qt::white);
         p.drawText(rect(), Qt::AlignCenter, "No audio loaded");
         return;
     }
 
     const int w = width();
-    const int h = height() - m_hScroll->height(); // Учитываем высоту скроллбара
+    const int h = height() - m_hScroll->height();
     const int offset = m_hScroll->value();
 
-    // Обновляем кэшированную форму сигнала, если размер или скролл изменился
+    // Обновляем путь, если размер или смещение изменились
     if (offset != m_cachedOffset || QSize(w, h) != m_cachedSize) {
         updateCachedPath();
         m_cachedOffset = offset;
@@ -72,30 +67,27 @@ void WaveformView::paintEvent(QPaintEvent*)
     p.setBrush(QColor(0, 255, 0, 100));
     p.drawPath(m_cachedPath);
 
-    // Вычисляем и отрисовываем маркер текущей позиции
-    double spp = (double(m_samples.size()) / m_zoom) / w; // сэмплов на пиксель
+    // Отрисовка маркера времени
+    double spp = double(m_samples.size()) / (m_zoom * w);
     double markerPx = (m_markerSec * m_sampleRate) / spp - offset;
     int mx = int(markerPx);
 
-    // Рисуем маркер только если он попадает в область видимости
     if (mx >= 0 && mx <= w) {
         p.setPen(QPen(Qt::red, 2));
-        p.drawLine(mx, 0, mx, h); // Вертикальная линия
+        p.drawLine(mx, 0, mx, h);
         p.setPen(Qt::white);
         p.drawText(mx + 4, h - 4, QString::number(m_markerSec, 'f', 2) + " s");
     }
 }
 
-// Обработка изменения размера окна
 void WaveformView::resizeEvent(QResizeEvent*)
 {
-    // Перемещаем скроллбар вниз
+    // Обновляем геометрию скроллбара и кэш
     m_hScroll->setGeometry(0, height() - m_hScroll->height(), width(), m_hScroll->height());
-    updateScroll();      // Пересчитываем границы скролла
-    updateCachedPath();  // Перестраиваем форму сигнала
+    updateScroll();
+    updateCachedPath();
 }
 
-// Пользователь нажал мышкой — начинаем перетаскивание маркера
 void WaveformView::mousePressEvent(QMouseEvent* ev)
 {
     if (ev->button() == Qt::LeftButton) {
@@ -104,54 +96,54 @@ void WaveformView::mousePressEvent(QMouseEvent* ev)
     }
 }
 
-// При перемещении мыши — обновляем позицию маркера
 void WaveformView::mouseMoveEvent(QMouseEvent* ev)
 {
     if (m_draggingMarker)
         updateMarkerFromPos(int(ev->position().x()));
 }
 
-// Завершение перетаскивания маркера
 void WaveformView::mouseReleaseEvent(QMouseEvent*)
 {
     m_draggingMarker = false;
 }
 
-// Обработка колесика мыши — приближение/отдаление с удержанием Ctrl
 void WaveformView::wheelEvent(QWheelEvent* ev)
 {
+    // Масштабирование при зажатом Ctrl
     if (ev->modifiers() & Qt::ControlModifier) {
         double cursorX = ev->position().x();
         int w = width();
-        if (w <= 0 || m_samples.isEmpty())
+        if (w <= 0 || m_samples.isEmpty()) {
+            ev->ignore();
             return;
+        }
 
-        // Считаем индекс сэмпла под курсором (до зума)
         double sampleCount = double(m_samples.size());
         double sppOld = sampleCount / (m_zoom * w);
         int oldOffset = m_hScroll->value();
         double sampleIndex = (oldOffset + cursorX) * sppOld;
 
-        // Изменяем зум (с запасом)
+        // Изменение зума
         double delta = ev->angleDelta().y() > 0 ? 1.25 : 0.8;
         m_zoom = qBound(m_minZoom, m_zoom * delta, m_maxZoom);
 
-        // Новая позиция скролла — чтобы зум был вокруг курсора
         double sppNew = sampleCount / (m_zoom * w);
         double newOffset = sampleIndex / sppNew - cursorX;
 
-        updateScroll(); // Обновляем скроллбар
-        m_hScroll->setValue(int(newOffset)); // Применяем
+        updateScroll();
+
+        // Принудительно ограничиваем новое значение
+        int clampedOffset = qBound(m_hScroll->minimum(), int(newOffset), m_hScroll->maximum());
+        m_hScroll->setValue(clampedOffset);
+
         updateCachedPath();
         update();
-
         ev->accept();
     } else {
-        QWidget::wheelEvent(ev); // обычная прокрутка
+        QWidget::wheelEvent(ev);
     }
 }
 
-// Перерасчёт границ скроллбара при изменении масштаба или размеров
 void WaveformView::updateScroll()
 {
     if (m_samples.isEmpty() || m_sampleRate == 0) {
@@ -160,15 +152,24 @@ void WaveformView::updateScroll()
     }
 
     int w = width();
-    double totalPx = double(m_samples.size()) / m_zoom; // сколько пикселей занимает сигнал при текущем зуме
-    int maxScroll = qMax(0, int(totalPx - w));          // ограничиваем по правой границе
+    if (w <= 0) return;
 
-    m_hScroll->setRange(0, maxScroll);
+    // Количество отсчётов на пиксель
+    double samplesPerPixel = double(m_samples.size()) / (m_zoom * w);
+    int totalVisiblePx = int(double(m_samples.size()) / samplesPerPixel);
+
+    int maxOffset = qMax(0, totalVisiblePx - w);  // ограничение по правому краю
+
+    int value = m_hScroll->value();
+    value = qBound(0, value, maxOffset);
+
+    m_hScroll->blockSignals(true);
+    m_hScroll->setRange(0, maxOffset);
     m_hScroll->setPageStep(w);
-    m_hScroll->setValue(qBound(0, m_hScroll->value(), maxScroll));
+    m_hScroll->setValue(value);
+    m_hScroll->blockSignals(false);
 }
 
-// Вычисляем позицию маркера в секундах по клику или перемещению мыши
 void WaveformView::updateMarkerFromPos(int x)
 {
     int w = width();
@@ -176,14 +177,13 @@ void WaveformView::updateMarkerFromPos(int x)
         return;
 
     int offset = m_hScroll->value();
-    double spp = (double(m_samples.size()) / m_zoom) / w;
+    double spp = double(m_samples.size()) / (m_zoom * w);
     double posSec = ((offset + x) * spp) / m_sampleRate;
 
-    setMarkerPosition(posSec); // Применяем
-    emit markerPositionChanged(m_markerSec); // Сообщаем внешнему миру
+    setMarkerPosition(posSec);
+    emit markerPositionChanged(m_markerSec);
 }
 
-// Генерация кэшированного QPainterPath для ускоренной отрисовки формы сигнала
 void WaveformView::updateCachedPath()
 {
     m_cachedPath = QPainterPath();
@@ -195,16 +195,18 @@ void WaveformView::updateCachedPath()
     if (viewWidth <= 0 || h <= 0 || m_samples.isEmpty())
         return;
 
-    double spp = (double(m_samples.size()) / m_zoom) / viewWidth;
+    // Кол-во сэмплов на пиксель
+    double spp = double(m_samples.size()) / (m_zoom * viewWidth);
+    int totalPx = int(double(m_samples.size()) / spp);
 
-    // Ограничиваем отрисовку по количеству реальных сэмплов (чтобы не было "хвоста")
-    int totalPx = int(m_samples.size() / spp);
+    // Правый предел отрисовки
     int endX = qMin(viewWidth, totalPx - offset);
+    if (endX <= 0) return;
 
+    // Минимумы и максимумы по каждому пикселю
     QVector<double> maxVals(endX, -1.0);
     QVector<double> minVals(endX, 1.0);
 
-    // Находим максимум и минимум по каждому x
     for (int x = 0; x < endX; ++x) {
         int startIdx = int((x + offset) * spp);
         int endIdx = int((x + offset + 1) * spp);
@@ -218,13 +220,14 @@ void WaveformView::updateCachedPath()
         }
     }
 
-    if (endX == 0) return;
-
-    // Создаём контур осциллограммы от max к min
+    // Верхняя граница полигона
     m_cachedPath.moveTo(0, h / 2.0 - maxVals[0] * (h / 2.0));
     for (int x = 1; x < endX; ++x)
         m_cachedPath.lineTo(x, h / 2.0 - maxVals[x] * (h / 2.0));
+
+    // Нижняя граница полигона (в обратном порядке)
     for (int x = endX - 1; x >= 0; --x)
         m_cachedPath.lineTo(x, h / 2.0 - minVals[x] * (h / 2.0));
-    m_cachedPath.closeSubpath(); // замыкаем контур для заливки
+
+    m_cachedPath.closeSubpath();  // Замыкаем путь, чтобы получился залитый многоугольник
 }
