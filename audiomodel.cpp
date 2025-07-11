@@ -5,7 +5,6 @@
 #include <cmath>
 #include <cstring>
 
-// Подключение kissfft C-style
 extern "C" {
 #include "kissfft/kiss_fft.h"
 #include "kissfft/kiss_fftr.h"
@@ -15,9 +14,6 @@ AudioModel::AudioModel(QObject* parent)
     : QObject(parent)
 {}
 
-/**
- * Загружает WAV-файл, извлекает метаданные и аудиосемплы, рассчитывает спектр и спектрограмму.
- */
 bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorString)
 {
     QFile f(filePath);
@@ -30,7 +26,6 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
     QDataStream in(&f);
     in.setByteOrder(QDataStream::LittleEndian);
 
-    // Проверка RIFF-заголовка
     char riff[4];
     in.readRawData(riff, 4);
     if (std::strncmp(riff, "RIFF", 4) != 0) {
@@ -50,7 +45,6 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
         return false;
     }
 
-    // Поиск чанка fmt
     bool fmtFound = false;
     quint32 fmtChunkSize = 0;
     quint16 audioFormat = 0;
@@ -65,7 +59,7 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
             fmtChunkSize = chunkSize;
             break;
         } else {
-            f.seek(f.pos() + chunkSize); // пропустить ненужный чанк
+            f.seek(f.pos() + chunkSize);
         }
     }
     if (!fmtFound) {
@@ -74,7 +68,6 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
         return false;
     }
 
-    // Считываем параметры формата
     in >> audioFormat;
     quint16 numChannels;
     in >> numChannels;
@@ -94,10 +87,9 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
     }
 
     if (fmtChunkSize > 16) {
-        f.seek(f.pos() + (fmtChunkSize - 16)); // Пропустить оставшиеся поля, если есть
+        f.seek(f.pos() + (fmtChunkSize - 16));
     }
 
-    // Поиск чанка data
     bool dataFound = false;
     quint32 dataSize = 0;
 
@@ -111,7 +103,7 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
             dataSize = chunkSize;
             break;
         } else {
-            f.seek(f.pos() + chunkSize); // пропустить
+            f.seek(f.pos() + chunkSize);
         }
     }
     if (!dataFound) {
@@ -120,14 +112,12 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
         return false;
     }
 
-    // Подготовка метаданных
     double durationSec = double(dataSize) / byteRate;
     quint32 bitRate = byteRate * 8;
 
     outMeta = { durationSec, sampleRate, byteRate, numChannels, bitsPerSample, bitRate };
     emit metadataReady(outMeta);
 
-    // Чтение аудиоданных
     QVector<double> samples;
     qint64 numSamples = dataSize / (numChannels * (bitsPerSample / 8));
     samples.reserve(numSamples);
@@ -144,25 +134,21 @@ bool AudioModel::loadWav(const QString& filePath, Meta& outMeta, QString& errorS
                 in >> val;
                 currentSample += (val - 128) * 256;
             } else {
-                f.seek(f.pos() + (bitsPerSample / 8)); // skip unsupported format
+                f.seek(f.pos() + (bitsPerSample / 8));
             }
         }
         currentSample /= numChannels;
-        samples.append(currentSample / 32768.0); // нормализация
+        samples.append(currentSample / 32768.0);
     }
 
     emit waveformReady(samples, sampleRate);
 
-    // Запуск анализа
     calculateSpectrum(samples, sampleRate);
     calculateSpectrogram(samples, sampleRate);
 
     return true;
 }
 
-/**
- *  Выполняет FFT и генерирует спектр.
- */
 void AudioModel::calculateSpectrum(const QVector<double>& samples, quint32 sampleRate)
 {
     const int fftSize = 2048;
@@ -202,13 +188,10 @@ void AudioModel::calculateSpectrum(const QVector<double>& samples, quint32 sampl
     emit spectrumReady(frequencies, amplitudes);
 }
 
-/**
- * Расчет спектрограммы с окном Хэннинга и перекрытием 50%.
- */
 void AudioModel::calculateSpectrogram(const QVector<double>& samples, quint32 sampleRate)
 {
     const int fftSize = 512;
-    const int hopSize = fftSize / 2; // перекрытие 50%
+    const int hopSize = fftSize / 2;
     int numFrames = (samples.size() - fftSize) / hopSize;
     if (numFrames <= 0) return;
 
@@ -224,13 +207,11 @@ void AudioModel::calculateSpectrogram(const QVector<double>& samples, quint32 sa
     QVector<kiss_fft_cpx> input(fftSize);
     QVector<kiss_fft_cpx> output(fftSize);
 
-    // Предрасчет окна Хэннинга
     QVector<double> window(fftSize);
     for (int i = 0; i < fftSize; ++i) {
         window[i] = 0.5 * (1 - cos(2 * M_PI * i / (fftSize - 1)));
     }
 
-    // Расчет кадров спектрограммы
     for (int frame = 0; frame < numFrames; ++frame) {
         int offset = frame * hopSize;
         for (int i = 0; i < fftSize; ++i) {

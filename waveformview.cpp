@@ -8,7 +8,6 @@ WaveformView::WaveformView(QWidget* parent)
     : QWidget(parent),
     m_hScroll(new QScrollBar(Qt::Horizontal, this))
 {
-    // Обновляем кэш и перерисовываем при изменении положения скроллбара
     connect(m_hScroll, &QScrollBar::valueChanged, this, [this]() {
         updateCachedPath();
         update();
@@ -23,9 +22,9 @@ void WaveformView::setSamples(const QVector<double>& samples, quint32 sampleRate
     m_zoom = 1.0;
     m_hScroll->setValue(0);
 
-    updateScroll();       // Обновляем параметры скроллбара
-    updateCachedPath();   // Обновляем путь осциллограммы
-    update();             // Перерисовываем виджет
+    updateScroll();
+    updateCachedPath();
+    update();
 }
 
 void WaveformView::setMarkerPosition(double seconds)
@@ -35,7 +34,7 @@ void WaveformView::setMarkerPosition(double seconds)
 
     if (!qFuzzyCompare(newMarker, m_markerSec)) {
         m_markerSec = newMarker;
-        update();  // Перерисовываем маркер
+        update();
     }
 }
 
@@ -44,7 +43,6 @@ void WaveformView::paintEvent(QPaintEvent*)
     QPainter p(this);
     p.fillRect(rect(), Qt::black);
 
-    // Показываем заглушку, если данные отсутствуют
     if (m_samples.isEmpty() || m_sampleRate == 0) {
         p.setPen(Qt::white);
         p.drawText(rect(), Qt::AlignCenter, "No audio loaded");
@@ -55,19 +53,16 @@ void WaveformView::paintEvent(QPaintEvent*)
     const int h = height() - m_hScroll->height();
     const int offset = m_hScroll->value();
 
-    // Обновляем путь, если размер или смещение изменились
     if (offset != m_cachedOffset || QSize(w, h) != m_cachedSize) {
         updateCachedPath();
         m_cachedOffset = offset;
         m_cachedSize = QSize(w, h);
     }
 
-    // Отрисовка осциллограммы
     p.setPen(QPen(Qt::green, 1));
     p.setBrush(QColor(0, 255, 0, 100));
     p.drawPath(m_cachedPath);
 
-    // Отрисовка маркера времени
     double spp = double(m_samples.size()) / (m_zoom * w);
     double markerPx = (m_markerSec * m_sampleRate) / spp - offset;
     int mx = int(markerPx);
@@ -82,7 +77,6 @@ void WaveformView::paintEvent(QPaintEvent*)
 
 void WaveformView::resizeEvent(QResizeEvent*)
 {
-    // Обновляем геометрию скроллбара и кэш
     m_hScroll->setGeometry(0, height() - m_hScroll->height(), width(), m_hScroll->height());
     updateScroll();
     updateCachedPath();
@@ -109,7 +103,6 @@ void WaveformView::mouseReleaseEvent(QMouseEvent*)
 
 void WaveformView::wheelEvent(QWheelEvent* ev)
 {
-    // Масштабирование при зажатом Ctrl
     if (ev->modifiers() & Qt::ControlModifier) {
         double cursorX = ev->position().x();
         int w = width();
@@ -123,7 +116,6 @@ void WaveformView::wheelEvent(QWheelEvent* ev)
         int oldOffset = m_hScroll->value();
         double sampleIndex = (oldOffset + cursorX) * sppOld;
 
-        // Изменение зума
         double delta = ev->angleDelta().y() > 0 ? 1.25 : 0.8;
         m_zoom = qBound(m_minZoom, m_zoom * delta, m_maxZoom);
 
@@ -132,7 +124,6 @@ void WaveformView::wheelEvent(QWheelEvent* ev)
 
         updateScroll();
 
-        // Принудительно ограничиваем новое значение
         int clampedOffset = qBound(m_hScroll->minimum(), int(newOffset), m_hScroll->maximum());
         m_hScroll->setValue(clampedOffset);
 
@@ -154,11 +145,10 @@ void WaveformView::updateScroll()
     int w = width();
     if (w <= 0) return;
 
-    // Количество отсчётов на пиксель
     double samplesPerPixel = double(m_samples.size()) / (m_zoom * w);
     int totalVisiblePx = int(double(m_samples.size()) / samplesPerPixel);
 
-    int maxOffset = qMax(0, totalVisiblePx - w);  // ограничение по правому краю
+    int maxOffset = qMax(0, totalVisiblePx - w);
 
     int value = m_hScroll->value();
     value = qBound(0, value, maxOffset);
@@ -195,15 +185,12 @@ void WaveformView::updateCachedPath()
     if (viewWidth <= 0 || h <= 0 || m_samples.isEmpty())
         return;
 
-    // Кол-во сэмплов на пиксель
     double spp = double(m_samples.size()) / (m_zoom * viewWidth);
     int totalPx = int(double(m_samples.size()) / spp);
 
-    // Правый предел отрисовки
     int endX = qMin(viewWidth, totalPx - offset);
     if (endX <= 0) return;
 
-    // Минимумы и максимумы по каждому пикселю
     QVector<double> maxVals(endX, -1.0);
     QVector<double> minVals(endX, 1.0);
 
@@ -220,14 +207,12 @@ void WaveformView::updateCachedPath()
         }
     }
 
-    // Верхняя граница полигона
     m_cachedPath.moveTo(0, h / 2.0 - maxVals[0] * (h / 2.0));
     for (int x = 1; x < endX; ++x)
         m_cachedPath.lineTo(x, h / 2.0 - maxVals[x] * (h / 2.0));
 
-    // Нижняя граница полигона (в обратном порядке)
     for (int x = endX - 1; x >= 0; --x)
         m_cachedPath.lineTo(x, h / 2.0 - minVals[x] * (h / 2.0));
 
-    m_cachedPath.closeSubpath();  // Замыкаем путь, чтобы получился залитый многоугольник
+    m_cachedPath.closeSubpath();
 }
