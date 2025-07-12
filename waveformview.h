@@ -43,8 +43,8 @@ private:
     double m_markerSec = 0.0;
 
     double m_zoom = 1.0;
-    const double m_minZoom = 0.5;
-    const double m_maxZoom = 100.0;
+    const double m_minZoom = 10.0;
+    const double m_maxZoom = 500.0;
 
     QScrollBar *m_hScroll = nullptr;
     bool m_draggingMarker = false;

@@ -1,9 +1,14 @@
 #pragma once
 
+#ifndef MAINWINDOW_H
+#define MAINWINDOW_H
+
 #include <QAudioOutput>
 #include <QMainWindow>
 #include <QMediaPlayer>
 #include <QSlider>
+#include <QLabel>
+#include <QString>
 
 #include "audiomodel.h"
 #include "spectrogramview.h"
@@ -41,4 +46,7 @@ private:
     SpectrogramView *m_spectrogram;
 
     QSlider *m_progressSlider;
+    QLabel *m_metadatalabel;
 };
+
+#endif // MAINWINDOW_H
