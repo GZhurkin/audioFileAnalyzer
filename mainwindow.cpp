@@ -1,41 +1,40 @@
 #include "mainwindow.h"
 #include <QAction>
 #include <QFileDialog>
+#include <QMenu>
 #include <QMessageBox>
 #include <QToolBar>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <QWidgetAction>
-#include <QMenu>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , m_model(new AudioModel(this))             // Объект для работы с аудиофайлом
+    , m_model(new AudioModel(this)) // Объект для работы с аудиофайлом
     , m_player(new QMediaPlayer(this))
     , m_audioOutput(new QAudioOutput(this))
-    , m_waveform(new WaveformView(this))        // Осциллограмма
-    , m_spectrogram(new SpectrogramView(this))  // Спектрограмма
-    , m_spectrum(new SpectrumView(this)) // ДОБАВИЛ
-    , m_metadatalabel(new QLabel(this))         // Метаданные
+    , m_waveform(new WaveformView(this))       // Осциллограмма
+    , m_spectrogram(new SpectrogramView(this)) // Спектрограмма
+    , m_spectrum(new SpectrumView(this))       // ДОБАВИЛ
+    , m_metadatalabel(new QLabel(this))        // Метаданные
 {
     // Настройка главного окна
     this->setWindowTitle("Audio File Analyzer");
     this->setMinimumSize(1280, 720);
-    this->setStyleSheet(
-        "QMainWindow {"
-        "   background-color: #808080;"   // Основной фон
-        "   color: #FFFCF2;"              // Светлый текст
-        "}"
-        "QWidget#centralWidget {"  // Центральный виджет
-        "   background-color: #999999;"
-        "}"
-        );
+    this->setStyleSheet("QMainWindow {"
+                        "   background-color: #808080;" // Основной фон
+                        "   color: #FFFCF2;"            // Светлый текст
+                        "}"
+                        "QWidget#centralWidget {" // Центральный виджет
+                        "   background-color: #999999;"
+                        "}");
 
     m_player->setAudioOutput(m_audioOutput);
 
     // Инициализация панели инструментов
     auto *tb = addToolBar("Controls");
-    QAction *openAct = tb->addAction(style()->standardIcon(QStyle::SP_DirOpenIcon), "Open"); // Иконка папки для открытия файлов
+    QAction *openAct = tb->addAction(style()->standardIcon(QStyle::SP_DirOpenIcon),
+                                     "Open"); // Иконка папки для открытия файлов
 
     // Разделитель перед элементами громкости
     tb->addSeparator();
@@ -75,7 +74,9 @@ MainWindow::MainWindow(QWidget *parent)
     tb->addWidget(volumeButton);
 
     // Обработка изменения громкости
-    connect(volumeSlider, &QSlider::valueChanged, this,
+    connect(volumeSlider,
+            &QSlider::valueChanged,
+            this,
             [this, volumeButton, volumeValueLabel](int value) {
                 // Установление громкости
                 float volume = value / 100.0f;
@@ -94,9 +95,7 @@ MainWindow::MainWindow(QWidget *parent)
                 } else {
                     volumeButton->setIcon(QIcon::fromTheme("audio-volume-high"));
                 }
-
             });
-
 
     // Подключение к слотам для обработки нажатий на кнопки
     connect(openAct, &QAction::triggered, this, &MainWindow::onOpenFile);
@@ -109,22 +108,18 @@ MainWindow::MainWindow(QWidget *parent)
     m_timeLabel->setAlignment(Qt::AlignCenter);
     m_timeLabel->setFixedHeight(20);
     m_timeLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    m_timeLabel->setStyleSheet(
-        "color: #FFFCF2;"
-        "font-size: 10pt;"
-        "margin: 0px;"
-        "padding: 0px;"
-        );
+    m_timeLabel->setStyleSheet("color: #FFFCF2;"
+                               "font-size: 10pt;"
+                               "margin: 0px;"
+                               "padding: 0px;");
 
     // Настройка метаданных
     m_metadatalabel->setAlignment(Qt::AlignLeft);
     m_metadatalabel->setFixedHeight(22);
-    m_metadatalabel->setStyleSheet(
-        "background-color: #403D39;"
-        "color: #FFFCF2;"
-        "padding: 2px 4px;"
-        "font-size: 9pt;"
-        );
+    m_metadatalabel->setStyleSheet("background-color: #403D39;"
+                                   "color: #FFFCF2;"
+                                   "padding: 2px 4px;"
+                                   "font-size: 9pt;");
     m_metadatalabel->setText("No data");
 
     // Кнопки управления
@@ -169,8 +164,8 @@ MainWindow::MainWindow(QWidget *parent)
     QWidget *centerButtons = new QWidget(this);
     QHBoxLayout *centerLayout = new QHBoxLayout(centerButtons);
     centerLayout->setContentsMargins(0, 0, 0, 0);
-    centerLayout->setSpacing(4);  // Устанавление промежутков между кнопками
-    centerLayout->setAlignment(Qt::AlignCenter);  // Центрируем блок кнопок
+    centerLayout->setSpacing(4);                 // Устанавление промежутков между кнопками
+    centerLayout->setAlignment(Qt::AlignCenter); // Центрируем блок кнопок
 
     centerLayout->addWidget(playBtn); // Добавление кнопок в горизонтальный блок
     centerLayout->addWidget(pauseBtn);
@@ -178,7 +173,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     infoLayout->addWidget(centerButtons, 0, 1, Qt::AlignHCenter);
 
-    QWidget *rightSpacer = new QWidget(this); //Заглушка справа, чтобы сохранить симметрию и растяжку виджетов
+    QWidget *rightSpacer = new QWidget(
+        this); //Заглушка справа, чтобы сохранить симметрию и растяжку виджетов
     rightSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     infoLayout->addWidget(rightSpacer, 0, 2);
 
@@ -196,7 +192,7 @@ MainWindow::MainWindow(QWidget *parent)
     layout->setSpacing(8);
 
     layout->addWidget(m_spectrogram, 1);
-    layout->addWidget(m_spectrum, 3);
+    layout->addWidget(m_spectrum, 2);
     layout->addWidget(m_waveform, 1);
     layout->addWidget(bottomPanel, 0); // Добавление объединенной нижней панели
 
@@ -226,48 +222,66 @@ MainWindow::MainWindow(QWidget *parent)
     connect(stopBtn, &QToolButton::clicked, m_player, &QMediaPlayer::stop);
 
     // Подключение слотов
-    connect(m_model, &AudioModel::metadataReady, this, &MainWindow::onMetadataReady);         // Вывод метаданных
-    connect(m_model, &AudioModel::waveformReady, this, &MainWindow::onWaveformReady);         // Вывод осциллограммы
-    connect(m_model, &AudioModel::spectrogramReady, this, &MainWindow::onSpectrogramReady);   // Вывод спектрограммы
-    connect(m_model, &AudioModel::errorOccurred, this, &MainWindow::onError);                 // Сообщение об ошибке
-    connect(m_player, &QMediaPlayer::positionChanged, this, &MainWindow::onPositionChanged);  // Перемещение маркера при проигрывании аудиофайла
+    connect(m_model,
+            &AudioModel::metadataReady,
+            this,
+            &MainWindow::onMetadataReady); // Вывод метаданных
+    connect(m_model,
+            &AudioModel::waveformReady,
+            this,
+            &MainWindow::onWaveformReady); // Вывод осциллограммы
+    connect(m_model,
+            &AudioModel::spectrogramReady,
+            this,
+            &MainWindow::onSpectrogramReady);                                 // Вывод спектрограммы
+    connect(m_model, &AudioModel::errorOccurred, this, &MainWindow::onError); // Сообщение об ошибке
+    connect(m_player,
+            &QMediaPlayer::positionChanged,
+            this,
+            &MainWindow::onPositionChanged); // Перемещение маркера при проигрывании аудиофайла
     connect(m_model, &AudioModel::spectrumReady, this, &MainWindow::onSpectrumReady);
 
-    connect(m_waveform, &WaveformView::markerPositionChanged, this, [this](double seconds) {  // Перемещение ползунка при перемещении маркера
-        qint64 posMs = static_cast<qint64>(seconds * 1000);
-        if (m_player->position() != posMs) {
-            m_player->setPosition(posMs);
-        }
-        if (m_player->duration() > 0) {
-            int sliderVal = static_cast<int>((posMs * 100) / m_player->duration());
-            if (m_progressSlider->value() != sliderVal) {
-                m_progressSlider->setValue(sliderVal);
-            }
-        }
-    });
+    connect(m_waveform,
+            &WaveformView::markerPositionChanged,
+            this,
+            [this](double seconds) { // Перемещение ползунка при перемещении маркера
+                qint64 posMs = static_cast<qint64>(seconds * 1000);
+                if (m_player->position() != posMs) {
+                    m_player->setPosition(posMs);
+                }
+                if (m_player->duration() > 0) {
+                    int sliderVal = static_cast<int>((posMs * 100) / m_player->duration());
+                    if (m_progressSlider->value() != sliderVal) {
+                        m_progressSlider->setValue(sliderVal);
+                    }
+                }
+            });
 
-    connect(m_progressSlider, &QSlider::sliderMoved, this, [this](int value) {  // Перемещение маркера при перемещении ползунка
-        if (m_player->duration() > 0) {
-            qint64 newPos = (value * m_player->duration()) / 100;
-            if (m_player->position() != newPos) {
-                m_player->setPosition(newPos);
-            }
-            double seconds = newPos / 1000.0;
-            m_waveform->setMarkerPosition(seconds);
-        }
-    });
-
+    connect(m_progressSlider,
+            &QSlider::sliderMoved,
+            this,
+            [this](int value) { // Перемещение маркера при перемещении ползунка
+                if (m_player->duration() > 0) {
+                    qint64 newPos = (value * m_player->duration()) / 100;
+                    if (m_player->position() != newPos) {
+                        m_player->setPosition(newPos);
+                    }
+                    double seconds = newPos / 1000.0;
+                    m_waveform->setMarkerPosition(seconds);
+                }
+            });
 }
-
-
 
 MainWindow::~MainWindow() {}
 
-void MainWindow::onOpenFile() {
+void MainWindow::onOpenFile()
+{
     const QString file = QFileDialog::getOpenFileName(this, "Select WAV", {}, "WAV Files (*.wav)");
-    if (file.isEmpty()) return;
+    if (file.isEmpty())
+        return;
 
-    m_metadatalabel->setText("Loading: " + QFileInfo(file).fileName()); // Обновление статуса метаданных
+    m_metadatalabel->setText("Loading: "
+                             + QFileInfo(file).fileName()); // Обновление статуса метаданных
     m_waveform->setSamples({}, 0);
     m_spectrogram->setSpectrogramData({});
     m_spectrum->setSpectrumData({}, {});
@@ -289,18 +303,19 @@ void MainWindow::onOpenFile() {
 }
 
 // Вывод метаданных
-void MainWindow::onMetadataReady(const AudioModel::Meta &m) {
-    m_metadatalabel->setText(
-        QString("%1 s | %2 Hz | %3 kbps | %4 ch | %5 bit")
-            .arg(m.durationSeconds, 0, 'f', 1)
-            .arg(m.sampleRate)
-            .arg(m.bitRate / 1000)
-            .arg(m.channels)
-            .arg(m.bitsPerSample));
+void MainWindow::onMetadataReady(const AudioModel::Meta &m)
+{
+    m_metadatalabel->setText(QString("%1 s | %2 Hz | %3 kbps | %4 ch | %5 bit")
+                                 .arg(m.durationSeconds, 0, 'f', 1)
+                                 .arg(m.sampleRate)
+                                 .arg(m.bitRate / 1000)
+                                 .arg(m.channels)
+                                 .arg(m.bitsPerSample));
 }
 
 // Вывод осциллограммы
-void MainWindow::onWaveformReady(const QVector<double> &samples, quint32 sampleRate) {
+void MainWindow::onWaveformReady(const QVector<double> &samples, quint32 sampleRate)
+{
     //НАЧАЛО ДОБАВЛЕННОГО КОДА
     m_samples = samples;       // Сохраняем сэмплы
     m_sampleRate = sampleRate; // Сохраняем частоту дискретизации
@@ -308,24 +323,28 @@ void MainWindow::onWaveformReady(const QVector<double> &samples, quint32 sampleR
     m_waveform->setSamples(samples, sampleRate);
 }
 // Вывод спектрограммы
-void MainWindow::onSpectrogramReady(const QVector<QVector<double>> &frames) {
+void MainWindow::onSpectrogramReady(const QVector<QVector<double>> &frames)
+{
     m_spectrogram->setSpectrogramData(frames);
 }
 
 //ДОБАВИЛ ФУНКЦИЮ
-void MainWindow::onSpectrumReady(const QVector<double> &frequencies, const QVector<double> &magnitudes)
+void MainWindow::onSpectrumReady(const QVector<double> &frequencies,
+                                 const QVector<double> &magnitudes)
 {
     m_spectrum->setFrequencyRange(20, 20000); // 20Hz - 20kHz
-    m_spectrum->setDecibelRange(-100, 100);     // -1000dB to 0dB ДОБАВИЛ ПОСЛДЕДНИЙ РАЗ
+    m_spectrum->setDecibelRange(-100, 100);   // -1000dB to 0dB ДОБАВИЛ ПОСЛДЕДНИЙ РАЗ
     m_spectrum->setSpectrumData(frequencies, magnitudes);
 }
 
 // Вывод сообщения об ошибке
-void MainWindow::onError(const QString &err) {
+void MainWindow::onError(const QString &err)
+{
     QMessageBox::critical(this, "Error", err);
 }
 // Перемещение ползунка при проигрывании аудиофайла
-void MainWindow::onPositionChanged(qint64 pos) {
+void MainWindow::onPositionChanged(qint64 pos)
+{
     double seconds = pos / 1000.0;
     m_waveform->setMarkerPosition(seconds);
 
@@ -344,8 +363,6 @@ void MainWindow::onPositionChanged(qint64 pos) {
                                 .arg((m_player->duration() % 60000) / 1000, 2, 10, QLatin1Char('0'));
 
         m_timeLabel->setText(currentTime1 + " / " + totalTime);
-
-
 
         // Обновление спектра в реальном времени
         qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
@@ -376,6 +393,5 @@ void MainWindow::onPositionChanged(qint64 pos) {
 
         // Рассчитываем спектр для текущего фрагмента
         m_model->calculateSpectrum(frame, m_sampleRate);
-
     }
 }

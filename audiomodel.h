@@ -29,14 +29,14 @@ signals:
     void metadataReady(const AudioModel::Meta &m);
     void waveformReady(const QVector<double> &samples, quint32 rate);
     //void spectrumReady(const QVector<double> &freq, const QVector<double> &amp);//Удалил
-    void spectrumReady(const QVector<double> &frequencies, const QVector<double> &magnitudes);//ДОБАВИЛ
+    void spectrumReady(const QVector<double> &frequencies,
+                       const QVector<double> &magnitudes); //ДОБАВИЛ
     void spectrogramReady(const QVector<QVector<double>> &frames);
     void errorOccurred(const QString &error);
 
 private:
-
     void calculateSpectrogram(const QVector<double> &samples, quint32 sampleRate);
-//перенес calculateSpectrum в public
+    //перенес calculateSpectrum в public
 public:
     void calculateSpectrum(const QVector<double> &samples, quint32 sampleRate);
 };

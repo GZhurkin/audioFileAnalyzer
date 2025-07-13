@@ -22,12 +22,12 @@ void WaveformView::setSamples(const QVector<double> &samples, quint32 sampleRate
     m_samples = samples;
     m_sampleRate = sampleRate;
     m_markerSec = 0.0;      // Сброс позиции маркера
-    m_zoom = 10.0;           // Сброс масштаба
+    m_zoom = 10.0;          // Сброс масштаба
     m_hScroll->setValue(0); // Сброс прокрутки
 
     updateScroll();
     updateCachedPath();
-    update();  // Запрос перерисовки
+    update(); // Запрос перерисовки
 }
 
 // Установка позиции маркера в секундах
@@ -38,7 +38,7 @@ void WaveformView::setMarkerPosition(double seconds)
 
     if (!qFuzzyCompare(newMarker, m_markerSec)) {
         m_markerSec = newMarker;
-        update();  // Перерисовка только при изменении позиции
+        update(); // Перерисовка только при изменении позиции
     }
 }
 
@@ -46,7 +46,7 @@ void WaveformView::setMarkerPosition(double seconds)
 void WaveformView::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
-    p.fillRect(rect(), Qt::black);  // Черный фон
+    p.fillRect(rect(), Qt::black); // Черный фон
 
     // Отображение заглушки при отсутствии данных
     if (m_samples.isEmpty() || m_sampleRate == 0) {
@@ -56,7 +56,7 @@ void WaveformView::paintEvent(QPaintEvent *)
     }
 
     const int w = width();
-    const int h = height() - m_hScroll->height();  // Высота области отрисовки
+    const int h = height() - m_hScroll->height(); // Высота области отрисовки
     const int offset = m_hScroll->value();
 
     // Обновление кэшированного пути при изменении параметров
@@ -68,7 +68,7 @@ void WaveformView::paintEvent(QPaintEvent *)
 
     // Отрисовка осциллограммы
     p.setPen(QPen(Qt::green, 1));
-    p.setBrush(QColor(0, 255, 0, 100));  // Полупрозрачная заливка
+    p.setBrush(QColor(0, 255, 0, 100)); // Полупрозрачная заливка
     p.drawPath(m_cachedPath);
 
     // Отрисовка маркера позиции
@@ -78,7 +78,7 @@ void WaveformView::paintEvent(QPaintEvent *)
 
     if (mx >= 0 && mx <= w) {
         p.setPen(QPen(Qt::red, 2));
-        p.drawLine(mx, 0, mx, h);  // Вертикальная линия маркера
+        p.drawLine(mx, 0, mx, h); // Вертикальная линия маркера
         p.setPen(Qt::white);
         p.drawText(mx + 4, h - 4, QString::number(m_markerSec, 'f', 2) + " s");
     }
@@ -159,7 +159,8 @@ void WaveformView::updateScroll()
     }
 
     int w = width();
-    if (w <= 0) return;
+    if (w <= 0)
+        return;
 
     // Расчет параметров прокрутки
     double samplesPerPixel = double(m_samples.size()) / (m_zoom * w);
@@ -172,7 +173,7 @@ void WaveformView::updateScroll()
 
     m_hScroll->blockSignals(true);
     m_hScroll->setRange(0, maxOffset);
-    m_hScroll->setPageStep(w);  // Размер "страницы" = видимая область
+    m_hScroll->setPageStep(w); // Размер "страницы" = видимая область
     m_hScroll->setValue(value);
     m_hScroll->blockSignals(false);
 }
@@ -181,14 +182,15 @@ void WaveformView::updateScroll()
 void WaveformView::updateMarkerFromPos(int x)
 {
     int w = width();
-    if (w <= 0 || m_sampleRate == 0) return;
+    if (w <= 0 || m_sampleRate == 0)
+        return;
 
     int offset = m_hScroll->value();
     double spp = double(m_samples.size()) / (m_zoom * w);
     double posSec = ((offset + x) * spp) / m_sampleRate;
 
     setMarkerPosition(posSec);
-    emit markerPositionChanged(m_markerSec);  // Уведомление о изменении
+    emit markerPositionChanged(m_markerSec); // Уведомление о изменении
 }
 
 // Генерация пути для отрисовки осциллограммы
@@ -207,7 +209,8 @@ void WaveformView::updateCachedPath()
     double spp = double(m_samples.size()) / (m_zoom * viewWidth);
     int totalPx = int(double(m_samples.size()) / spp);
     int endX = qMin(viewWidth, totalPx - offset);
-    if (endX <= 0) return;
+    if (endX <= 0)
+        return;
 
     // Поиск мин/макс значений для каждого пикселя по X
     QVector<double> maxVals(endX, -1.0);
@@ -236,5 +239,5 @@ void WaveformView::updateCachedPath()
     for (int x = endX - 1; x >= 0; --x)
         m_cachedPath.lineTo(x, h / 2.0 - minVals[x] * (h / 2.0));
 
-    m_cachedPath.closeSubpath();  // Замыкание контура
+    m_cachedPath.closeSubpath(); // Замыкание контура
 }

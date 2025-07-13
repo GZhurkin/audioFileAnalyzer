@@ -8,13 +8,14 @@
 SpectrogramView::SpectrogramView(QWidget *parent)
     : QWidget(parent)
 {
-    setMinimumHeight(150);  // Минимальная высота виджета
+    setMinimumHeight(150); // Минимальная высота виджета
 }
 
 // Добавление нового среза спектра
-void SpectrogramView::addSpectrumSlice(const QVector<double> &freqBins, const QVector<double> &magnitudes)
+void SpectrogramView::addSpectrumSlice(const QVector<double> &freqBins,
+                                       const QVector<double> &magnitudes)
 {
-    QMutexLocker locker(&m_mutex);  // Защита от конкурентного доступа
+    QMutexLocker locker(&m_mutex); // Защита от конкурентного доступа
 
     // Проверка согласованности данных
     if (freqBins.size() != magnitudes.size())
@@ -30,10 +31,10 @@ void SpectrogramView::addSpectrumSlice(const QVector<double> &freqBins, const QV
     // Добавление данных с ограничением истории
     m_spectrogramData.append(magnitudes);
     if (m_spectrogramData.size() > m_maxTimeSlices)
-        m_spectrogramData.pop_front();  // Удаление устаревших данных
+        m_spectrogramData.pop_front(); // Удаление устаревших данных
 
     updateImage();
-    update();  // Запрос перерисовки
+    update(); // Запрос перерисовки
 }
 
 // Установка новых данных спектрограммы
@@ -48,12 +49,12 @@ void SpectrogramView::setSpectrogramData(const QVector<QVector<double>> &data)
     update();
 }
 
-void SpectrogramView::clear()  // Очистка данных спектрограммы
+void SpectrogramView::clear() // Очистка данных спектрограммы
 {
     QMutexLocker locker(&m_mutex);
 
     m_spectrogramData.clear();
-    m_image = QImage();  // Сброс изображения
+    m_image = QImage(); // Сброс изображения
     update();
 }
 
@@ -61,7 +62,7 @@ void SpectrogramView::clear()  // Очистка данных спектрогр
 void SpectrogramView::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    painter.fillRect(rect(), Qt::black);  // Черный фон
+    painter.fillRect(rect(), Qt::black); // Черный фон
 
     QMutexLocker locker(&m_mutex);
 
@@ -80,7 +81,7 @@ void SpectrogramView::paintEvent(QPaintEvent *)
 void SpectrogramView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    updateImage();  // Обновление изображения под новый размер
+    updateImage(); // Обновление изображения под новый размер
 }
 
 // Генерация изображения спектрограммы
@@ -89,8 +90,8 @@ void SpectrogramView::updateImage()
     if (m_spectrogramData.isEmpty() || m_freqBinCount == 0)
         return;
 
-    const int width = m_spectrogramData.size();    // Временные отсчеты (ось X)
-    const int height = m_freqBinCount;             // Частотные бины (ось Y)
+    const int width = m_spectrogramData.size(); // Временные отсчеты (ось X)
+    const int height = m_freqBinCount;          // Частотные бины (ось Y)
 
     QImage img(width, height, QImage::Format_RGB32);
 
@@ -98,7 +99,7 @@ void SpectrogramView::updateImage()
     for (int x = 0; x < width; ++x) {
         const QVector<double> &magnitudes = m_spectrogramData[x];
         for (int y = 0; y < height; ++y) {
-            int imgY = height - 1 - y;  // Инвертирование Y (низкие частоты внизу)
+            int imgY = height - 1 - y; // Инвертирование Y (низкие частоты внизу)
             QColor col = magnitudeToColor(magnitudes[y]);
             img.setPixelColor(x, imgY, col);
         }

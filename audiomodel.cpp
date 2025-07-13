@@ -25,7 +25,7 @@ bool AudioModel::loadWav(const QString &filePath, Meta &outMeta, QString &errorS
     }
 
     QDataStream in(&f);
-    in.setByteOrder(QDataStream::LittleEndian);  // WAV использует little-endian
+    in.setByteOrder(QDataStream::LittleEndian); // WAV использует little-endian
 
     // Проверка RIFF заголовка
     char riff[4];
@@ -62,7 +62,7 @@ bool AudioModel::loadWav(const QString &filePath, Meta &outMeta, QString &errorS
             fmtChunkSize = chunkSize;
             break;
         } else {
-            f.seek(f.pos() + chunkSize);  // Пропуск неизвестных чанков
+            f.seek(f.pos() + chunkSize); // Пропуск неизвестных чанков
         }
     }
     if (!fmtFound) {
@@ -110,7 +110,7 @@ bool AudioModel::loadWav(const QString &filePath, Meta &outMeta, QString &errorS
             dataSize = chunkSize;
             break;
         } else {
-            f.seek(f.pos() + chunkSize);  // Пропуск других чанков
+            f.seek(f.pos() + chunkSize); // Пропуск других чанков
         }
     }
     if (!dataFound) {
@@ -141,13 +141,13 @@ bool AudioModel::loadWav(const QString &filePath, Meta &outMeta, QString &errorS
             } else if (bitsPerSample == 8) {
                 quint8 val;
                 in >> val;
-                currentSample += (val - 128) * 256;  // Конвертация 8-bit в signed
+                currentSample += (val - 128) * 256; // Конвертация 8-bit в signed
             } else {
-                f.seek(f.pos() + (bitsPerSample / 8));  // Пропуск неподдерживаемых форматов
+                f.seek(f.pos() + (bitsPerSample / 8)); // Пропуск неподдерживаемых форматов
             }
         }
-        currentSample /= numChannels;  // Усреднение по каналам
-        samples.append(currentSample / 32768.0);  // Нормализация [-1.0, 1.0]
+        currentSample /= numChannels;            // Усреднение по каналам
+        samples.append(currentSample / 32768.0); // Нормализация [-1.0, 1.0]
     }
 
     emit waveformReady(samples, sampleRate);
@@ -188,7 +188,7 @@ void AudioModel::calculateSpectrum(const QVector<double> &samples, quint32 sampl
 
     frequencies.reserve(fftSize / 2);
     amplitudes.reserve(fftSize / 2);
-    
+
     for (int i = 0; i < fftSize / 2; ++i) {
         double freq = i * double(sampleRate) / fftSize;
         double amp = std::sqrt(output[i].r * output[i].r + output[i].i * output[i].i);
@@ -209,7 +209,7 @@ void AudioModel::calculateSpectrum(const QVector<double> &samples, quint32 sampl
 void AudioModel::calculateSpectrogram(const QVector<double> &samples, quint32 sampleRate)
 {
     const int fftSize = 512;
-    const int hopSize = fftSize / 2;  // 50% перекрытие окон
+    const int hopSize = fftSize / 2; // 50% перекрытие окон
     int numFrames = (samples.size() - fftSize) / hopSize;
     if (numFrames <= 0)
         return;

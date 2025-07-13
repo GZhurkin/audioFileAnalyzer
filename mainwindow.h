@@ -4,18 +4,18 @@
 #define MAINWINDOW_H
 
 #include <QAudioOutput>
+#include <QLabel>
 #include <QMainWindow>
 #include <QMediaPlayer>
 #include <QSlider>
-#include <QLabel>
 #include <QString>
 
+#include <QStyle>
+#include <QToolButton>
 #include "audiomodel.h"
 #include "spectrogramview.h"
-#include "waveformview.h"
-#include <QToolButton>
-#include <QStyle>
 #include "spectrumview.h"
+#include "waveformview.h"
 
 class MainWindow : public QMainWindow
 {
@@ -58,13 +58,11 @@ private:
     QToolButton *pauseBtn;
     QToolButton *stopBtn;
 
-
     SpectrumView *m_spectrum;
     QVector<double> m_samples;
     quint32 m_sampleRate = 0;
     qint64 m_lastSpectrumUpdate = 0;
     const qint64 SPECTRUM_UPDATE_INTERVAL_MS = 50; // 20 FPS
-
 };
 
 #endif // MAINWINDOW_H

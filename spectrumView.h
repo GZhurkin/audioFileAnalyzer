@@ -2,12 +2,12 @@
 #ifndef SPECTRUMVIEW_H
 #define SPECTRUMVIEW_H
 
-#include <QWidget>
-#include <QVector>
+#include <QLinearGradient>
 #include <QMutex>
 #include <QPoint>
 #include <QRubberBand>
-#include <QLinearGradient>
+#include <QVector>
+#include <QWidget>
 
 class SpectrumView : public QWidget
 {
@@ -33,14 +33,14 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
 
 private:
-    struct SpectrumPoint {
+    struct SpectrumPoint
+    {
         double frequency;
         double magnitude;
     };
 
     QVector<SpectrumPoint> m_spectrumData;
     QMutex m_mutex;
-
 
     double m_minFrequency = 20.0;
     double m_maxFrequency = 20000.0;
@@ -49,14 +49,12 @@ private:
     double m_zoomFactor = 1.0;
     double m_panOffset = 0.0;
 
-
     QLinearGradient m_spectrumGradient;
     QColor m_lineColor = QColor(138, 43, 226);
 
-
     QPoint m_zoomStart;
     QPoint m_zoomEnd;
-    QRubberBand* m_rubberBand;
+    QRubberBand *m_rubberBand;
     bool m_isPanning = false;
     QPoint m_lastPanPoint;
 

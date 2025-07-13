@@ -1,15 +1,16 @@
 #include "spectrumview.h"
-#include <QPainter>
-#include <QResizeEvent>
-#include <QMouseEvent>
-#include <QWheelEvent>
-#include <cmath>
-#include <algorithm>
-#include <QPainterPath>
 #include <QDebug>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPainterPath>
+#include <QResizeEvent>
+#include <QWheelEvent>
+#include <algorithm>
+#include <cmath>
 
 SpectrumView::SpectrumView(QWidget *parent)
-    : QWidget(parent), m_rubberBand(new QRubberBand(QRubberBand::Rectangle, this))
+    : QWidget(parent)
+    , m_rubberBand(new QRubberBand(QRubberBand::Rectangle, this))
 {
     setMinimumSize(400, 300);
     setMouseTracking(true);
@@ -22,9 +23,9 @@ SpectrumView::SpectrumView(QWidget *parent)
 void SpectrumView::updateGradient()
 {
     m_spectrumGradient = QLinearGradient(0, 0, 0, height());
-    m_spectrumGradient.setColorAt(0.0, QColor(75, 0, 130, 200));  // Индиго
+    m_spectrumGradient.setColorAt(0.0, QColor(75, 0, 130, 200));   // Индиго
     m_spectrumGradient.setColorAt(0.5, QColor(138, 43, 226, 150)); // Фиолетовый
-    m_spectrumGradient.setColorAt(1.0, QColor(147, 112, 219, 50));  // Светло-фиолетовый
+    m_spectrumGradient.setColorAt(1.0, QColor(147, 112, 219, 50)); // Светло-фиолетовый
 }
 
 double SpectrumView::getVisibleMinFreq() const
@@ -57,9 +58,11 @@ void SpectrumView::setDecibelRange(double minDB, double maxDB)
     update();
 }
 
-void SpectrumView::setSpectrumData(const QVector<double> &frequencies, const QVector<double> &magnitudes)
+void SpectrumView::setSpectrumData(const QVector<double> &frequencies,
+                                   const QVector<double> &magnitudes)
 {
-    if (frequencies.size() != magnitudes.size()) return;
+    if (frequencies.size() != magnitudes.size())
+        return;
 
     QMutexLocker locker(&m_mutex);
     m_spectrumData.clear();
@@ -95,15 +98,11 @@ void SpectrumView::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
-
     painter.fillRect(rect(), QColor(30, 30, 40));
-
 
     drawGrid(painter);
 
-
     drawSpectrum(painter);
-
 
     drawLabels(painter);
 }
@@ -111,7 +110,7 @@ void SpectrumView::paintEvent(QPaintEvent *event)
 void SpectrumView::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    updateGradient();  // Обновляем градиент при изменении размера
+    updateGradient(); // Обновляем градиент при изменении размера
     update();
 }
 
@@ -121,8 +120,7 @@ void SpectrumView::mousePressEvent(QMouseEvent *event)
         m_zoomStart = event->pos();
         m_rubberBand->setGeometry(QRect(m_zoomStart, QSize()));
         m_rubberBand->show();
-    }
-    else if (event->button() == Qt::RightButton) {
+    } else if (event->button() == Qt::RightButton) {
         m_isPanning = true;
         m_lastPanPoint = event->pos();
         setCursor(Qt::ClosedHandCursor);
@@ -134,8 +132,7 @@ void SpectrumView::mouseMoveEvent(QMouseEvent *event)
     if (m_rubberBand->isVisible()) {
         m_zoomEnd = event->pos();
         m_rubberBand->setGeometry(QRect(m_zoomStart, m_zoomEnd).normalized());
-    }
-    else if (m_isPanning) {
+    } else if (m_isPanning) {
         QPoint delta = event->pos() - m_lastPanPoint;
         m_lastPanPoint = event->pos();
 
@@ -159,8 +156,7 @@ void SpectrumView::mouseReleaseEvent(QMouseEvent *event)
         if (zoomRect.width() > 10 && zoomRect.height() > 10) {
             applyZoom(zoomRect);
         }
-    }
-    else if (event->button() == Qt::RightButton && m_isPanning) {
+    } else if (event->button() == Qt::RightButton && m_isPanning) {
         m_isPanning = false;
         setCursor(Qt::ArrowCursor);
     }
@@ -168,7 +164,9 @@ void SpectrumView::mouseReleaseEvent(QMouseEvent *event)
 
 void SpectrumView::wheelEvent(QWheelEvent *event)
 {
-    double zoomFactor = 1.0 + (event->angleDelta().y() > 0 ? 0.1 : -0.1); // Более плавное масштабирование
+    double zoomFactor = 1.0
+                        + (event->angleDelta().y() > 0 ? 0.1
+                                                       : -0.1); // Более плавное масштабирование
     m_zoomFactor = qBound(1.0, m_zoomFactor * zoomFactor, 100.0);
 
     // Автоматическая коррекция панорамирования при увеличении
@@ -190,7 +188,6 @@ void SpectrumView::drawGrid(QPainter &painter)
     double visibleMinFreq = getVisibleMinFreq();
     double visibleMaxFreq = getVisibleMaxFreq();
 
-
     for (int db = static_cast<int>(m_minDB); db <= static_cast<int>(m_maxDB); db += 20) {
         double normDB = (db - m_minDB) / (m_maxDB - m_minDB);
         int y = height() - static_cast<int>(normDB * height());
@@ -202,7 +199,7 @@ void SpectrumView::drawGrid(QPainter &painter)
     }
 
     // Vertical grid lines (frequency) - динамический диапазон
-    double logMin = log10(qMax(1.0, visibleMinFreq));  // Защита от log(0)
+    double logMin = log10(qMax(1.0, visibleMinFreq)); // Защита от log(0)
     double logMax = log10(visibleMaxFreq);
     double logRange = logMax - logMin;
 
@@ -210,10 +207,10 @@ void SpectrumView::drawGrid(QPainter &painter)
     for (int decade = static_cast<int>(pow(10, floor(logMin)));
          decade <= static_cast<int>(pow(10, ceil(logMax)));
          decade *= 10) {
-
         for (int multiplier = 1; multiplier <= 10; multiplier++) {
             double freq = decade * multiplier;
-            if (freq < visibleMinFreq || freq > visibleMaxFreq) continue;
+            if (freq < visibleMinFreq || freq > visibleMaxFreq)
+                continue;
 
             double logFreq = log10(freq);
             int x = static_cast<int>((logFreq - logMin) / logRange * width());
@@ -230,7 +227,7 @@ void SpectrumView::drawGrid(QPainter &painter)
                 painter.setPen(Qt::white);
                 QString label;
                 if (freq >= 1000) {
-                    label = QString::number(freq/1000, 'f', freq < 10000 ? 1 : 0) + "k";
+                    label = QString::number(freq / 1000, 'f', freq < 10000 ? 1 : 0) + "k";
                 } else {
                     label = QString::number(freq, 'f', 0);
                 }
@@ -245,7 +242,8 @@ void SpectrumView::drawGrid(QPainter &painter)
 
 void SpectrumView::drawSpectrum(QPainter &painter)
 {
-    if (m_spectrumData.isEmpty()) return;
+    if (m_spectrumData.isEmpty())
+        return;
 
     QMutexLocker locker(&m_mutex);
 
@@ -254,7 +252,7 @@ void SpectrumView::drawSpectrum(QPainter &painter)
     double visibleMaxFreq = getVisibleMaxFreq();
 
     // Логарифмические преобразования
-    double logMin = log10(qMax(1.0, visibleMinFreq));  // Защита от log(0)
+    double logMin = log10(qMax(1.0, visibleMinFreq)); // Защита от log(0)
     double logMax = log10(visibleMaxFreq);
     double logRange = logMax - logMin;
     double dbRange = m_maxDB - m_minDB;
@@ -267,8 +265,10 @@ void SpectrumView::drawSpectrum(QPainter &painter)
     double maxMag = m_minDB;
     for (const auto &point : m_spectrumData) {
         if (point.frequency >= visibleMinFreq && point.frequency <= visibleMaxFreq) {
-            if (point.magnitude < minMag) minMag = point.magnitude;
-            if (point.magnitude > maxMag) maxMag = point.magnitude;
+            if (point.magnitude < minMag)
+                minMag = point.magnitude;
+            if (point.magnitude > maxMag)
+                maxMag = point.magnitude;
         }
     }
 
@@ -281,7 +281,8 @@ void SpectrumView::drawSpectrum(QPainter &painter)
         double mag = point.magnitude;
 
         // Пропускаем точки вне видимого диапазона
-        if (freq < visibleMinFreq || freq > visibleMaxFreq) continue;
+        if (freq < visibleMinFreq || freq > visibleMaxFreq)
+            continue;
 
         double normalizedFreq = (log10(freq) - logMin) / logRange;
         double normalizedMag = (mag - m_minDB) / dbRange;
@@ -301,14 +302,12 @@ void SpectrumView::drawSpectrum(QPainter &painter)
         }
     }
 
-
     QPainterPath filledPath = path;
     filledPath.lineTo(width(), height());
     filledPath.lineTo(0, height());
     filledPath.closeSubpath();
 
     painter.fillPath(filledPath, m_spectrumGradient);
-
 
     painter.setPen(QPen(m_lineColor, 2));
     painter.drawPath(path);
@@ -319,29 +318,24 @@ void SpectrumView::drawLabels(QPainter &painter)
     painter.save();
     painter.setPen(Qt::white);
 
-
     if (m_zoomFactor > 1.01) {
         painter.drawText(10, 20, QString("Zoom: x%1").arg(m_zoomFactor, 0, 'f', 1));
     }
 
-
     double visibleMinFreq = getVisibleMinFreq();
     double visibleMaxFreq = getVisibleMaxFreq();
 
-    QString freqRangeStr = QString("%1 Hz - %2 Hz")
-                               .arg(visibleMinFreq, 0, 'f', 0)
-                               .arg(visibleMaxFreq, 0, 'f', 0);
+    QString freqRangeStr
+        = QString("%1 Hz - %2 Hz").arg(visibleMinFreq, 0, 'f', 0).arg(visibleMaxFreq, 0, 'f', 0);
 
     painter.drawText(width() - 200, 20, freqRangeStr);
-
 
     if (underMouse()) {
         QPoint pos = mapFromGlobal(QCursor::pos());
         QPointF dataPoint = pointToData(pos);
 
-        QString info = QString("%1 Hz, %2 dB")
-                           .arg(dataPoint.x(), 0, 'f', 1)
-                           .arg(dataPoint.y(), 0, 'f', 1);
+        QString info
+            = QString("%1 Hz, %2 dB").arg(dataPoint.x(), 0, 'f', 1).arg(dataPoint.y(), 0, 'f', 1);
 
         painter.drawText(pos + QPoint(15, -10), info);
         painter.drawEllipse(pos, 3, 3);
@@ -357,7 +351,7 @@ void SpectrumView::applyZoom(const QRect &zoomRect)
     double visibleMaxFreq = getVisibleMaxFreq();
 
     // Логарифмические преобразования
-    double logMin = log10(qMax(1.0, visibleMinFreq));  // Защита от log(0)
+    double logMin = log10(qMax(1.0, visibleMinFreq)); // Защита от log(0)
     double logMax = log10(visibleMaxFreq);
     double logRange = logMax - logMin;
 
@@ -380,7 +374,7 @@ QPointF SpectrumView::dataToPoint(double freq, double mag) const
     double visibleMaxFreq = getVisibleMaxFreq();
 
     // Логарифмические преобразования
-    double logMin = log10(qMax(1.0, visibleMinFreq));  // Защита от log(0)
+    double logMin = log10(qMax(1.0, visibleMinFreq)); // Защита от log(0)
     double logMax = log10(visibleMaxFreq);
     double logRange = logMax - logMin;
 
@@ -397,7 +391,7 @@ QPointF SpectrumView::pointToData(const QPoint &point) const
     double visibleMaxFreq = getVisibleMaxFreq();
 
     // Логарифмические преобразования
-    double logMin = log10(qMax(1.0, visibleMinFreq));  // Защита от log(0)
+    double logMin = log10(qMax(1.0, visibleMinFreq)); // Защита от log(0)
     double logMax = log10(visibleMaxFreq);
     double logRange = logMax - logMin;
 
