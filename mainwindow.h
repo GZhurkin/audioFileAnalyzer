@@ -13,6 +13,8 @@
 #include "audiomodel.h"
 #include "spectrogramview.h"
 #include "waveformview.h"
+#include <QToolButton>
+#include <QStyle>
 
 class MainWindow : public QMainWindow
 {
@@ -47,6 +49,11 @@ private:
 
     QSlider *m_progressSlider;
     QLabel *m_metadatalabel;
+    QLabel *m_timeLabel; //Таймер
+
+    QToolButton *playBtn;
+    QToolButton *pauseBtn;
+    QToolButton *stopBtn;
 };
 
 #endif // MAINWINDOW_H
