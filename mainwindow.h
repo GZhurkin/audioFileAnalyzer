@@ -13,6 +13,9 @@
 #include "audiomodel.h"
 #include "spectrogramview.h"
 #include "waveformview.h"
+#include <QToolButton>
+#include <QStyle>
+#include "spectrumview.h"
 
 class MainWindow : public QMainWindow
 {
@@ -32,6 +35,8 @@ private slots:
 
     void onSpectrogramReady(const QVector<QVector<double>> &frames);
 
+    void onSpectrumReady(const QVector<double> &frequencies, const QVector<double> &magnitudes);
+
     void onError(const QString &err);
 
     void onPositionChanged(qint64 pos);
@@ -47,6 +52,19 @@ private:
 
     QSlider *m_progressSlider;
     QLabel *m_metadatalabel;
+    QLabel *m_timeLabel; //Таймер
+
+    QToolButton *playBtn;
+    QToolButton *pauseBtn;
+    QToolButton *stopBtn;
+
+
+    SpectrumView *m_spectrum;
+    QVector<double> m_samples;
+    quint32 m_sampleRate = 0;
+    qint64 m_lastSpectrumUpdate = 0;
+    const qint64 SPECTRUM_UPDATE_INTERVAL_MS = 50; // 20 FPS
+
 };
 
 #endif // MAINWINDOW_H

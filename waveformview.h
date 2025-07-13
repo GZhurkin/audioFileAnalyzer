@@ -60,4 +60,4 @@ private:
     void updateCachedPath();
 };
 
-#endif // WAVEFORMVIEW_H
+#endif

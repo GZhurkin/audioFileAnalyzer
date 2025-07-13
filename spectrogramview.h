@@ -41,4 +41,4 @@ private:
     QColor magnitudeToColor(double magnitude) const;
 };
 
-#endif // SPECTROGRAMVIEW_H
+#endif

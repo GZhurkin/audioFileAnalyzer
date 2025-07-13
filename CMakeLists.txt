@@ -20,6 +20,8 @@ qt_add_executable(audioFileAnalyzer
     spectrogramview.cpp spectrogramview.h
     audiomodel.h
     mainwindow.ui
+    spectrumview.h
+    spectrumview.cpp
 )
 
 target_link_libraries(audioFileAnalyzer

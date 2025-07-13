@@ -159,7 +159,7 @@ bool AudioModel::loadWav(const QString &filePath, Meta &outMeta, QString &errorS
     return true;
 }
 
-// Вычисление спектра сигнала с помощью FFT
+// ИЗМЕНЕН calculateSpectrum
 void AudioModel::calculateSpectrum(const QVector<double> &samples, quint32 sampleRate)
 {
     const int fftSize = 2048;
@@ -171,34 +171,37 @@ void AudioModel::calculateSpectrum(const QVector<double> &samples, quint32 sampl
         return;
     }
 
-    // Подготовка входных данных для FFT
     QVector<kiss_fft_cpx> input(fftSize);
     QVector<kiss_fft_cpx> output(fftSize);
 
+    // Применяем оконную функцию Ханна для уменьчения артефактов
     for (int i = 0; i < fftSize; ++i) {
-        input[i].r = (i < n) ? samples[i] : 0.0;  // Заполнение нулями
+        double window = 0.5 * (1 - cos(2 * M_PI * i / (fftSize - 1)));
+        input[i].r = (i < n) ? samples[i] * window : 0.0;
         input[i].i = 0.0;
     }
 
-    // Выполнение преобразования Фурье
     kiss_fft(cfg, input.data(), output.data());
 
-    // Формирование результатов спектрального анализа
     QVector<double> frequencies;
     QVector<double> amplitudes;
 
     frequencies.reserve(fftSize / 2);
     amplitudes.reserve(fftSize / 2);
-
-    // Обработка только первой половины результатов (симметричность FFT)
+    
     for (int i = 0; i < fftSize / 2; ++i) {
         double freq = i * double(sampleRate) / fftSize;
         double amp = std::sqrt(output[i].r * output[i].r + output[i].i * output[i].i);
+
+        // Правильный расчет dB (без инверсии)
+        double dB = 20 * log10(amp + 1e-12); // +1e-12 чтобы избежать log(0)
+
         frequencies.append(freq);
-        amplitudes.append(amp);
+        amplitudes.append(dB);
     }
 
     free(cfg);
+
     emit spectrumReady(frequencies, amplitudes);
 }
 
