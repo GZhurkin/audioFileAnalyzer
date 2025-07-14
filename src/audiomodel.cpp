@@ -6,8 +6,8 @@
 #include <cstring>
 
 extern "C" {
-#include "kissfft/kiss_fft.h"
-#include "kissfft/kiss_fftr.h"
+#include <kiss_fft.h>
+#include <kiss_fftr.h>
 }
 
 AudioModel::AudioModel(QObject *parent)
