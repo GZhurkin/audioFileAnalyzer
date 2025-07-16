@@ -1,4 +1,3 @@
-// spectrogramview.cpp
 #include "spectrogramview.h"
 #include <QPainter>
 #include <QResizeEvent>
@@ -62,7 +61,7 @@ void SpectrogramView::clear() // Очистка данных спектрогр�
 void SpectrogramView::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    painter.fillRect(rect(), Qt::black); // Черный фон
+    painter.fillRect(rect(), Qt::black);
 
     QMutexLocker locker(&m_mutex);
 

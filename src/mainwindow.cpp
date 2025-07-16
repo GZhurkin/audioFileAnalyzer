@@ -15,7 +15,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_audioOutput(new QAudioOutput(this))
     , m_waveform(new WaveformView(this))       // Осциллограмма
     , m_spectrogram(new SpectrogramView(this)) // Спектрограмма
-    , m_spectrum(new SpectrumView(this))       // ДОБАВИЛ
+    , m_spectrum(new SpectrumView(this))       // Спектр
     , m_metadatalabel(new QLabel(this))        // Метаданные
 {
     // Настройка главного окна
@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
                         "   background-color: #808080;" // Основной фон
                         "   color: #FFFCF2;"            // Светлый текст
                         "}"
-                        "QWidget#centralWidget {" // Центральный виджет
+                        "QWidget#centralWidget {"       // Центральный виджет
                         "   background-color: #999999;"
                         "}");
 
@@ -316,10 +316,8 @@ void MainWindow::onMetadataReady(const AudioModel::Meta &m)
 // Вывод осциллограммы
 void MainWindow::onWaveformReady(const QVector<double> &samples, quint32 sampleRate)
 {
-    //НАЧАЛО ДОБАВЛЕННОГО КОДА
     m_samples = samples;       // Сохраняем сэмплы
     m_sampleRate = sampleRate; // Сохраняем частоту дискретизации
-    //КОНЕЦ ДОБАВЛЕННОГО КОДА
     m_waveform->setSamples(samples, sampleRate);
 }
 // Вывод спектрограммы
@@ -328,12 +326,11 @@ void MainWindow::onSpectrogramReady(const QVector<QVector<double>> &frames)
     m_spectrogram->setSpectrogramData(frames);
 }
 
-//ДОБАВИЛ ФУНКЦИЮ
 void MainWindow::onSpectrumReady(const QVector<double> &frequencies,
                                  const QVector<double> &magnitudes)
 {
     m_spectrum->setFrequencyRange(20, 20000); // 20Hz - 20kHz
-    m_spectrum->setDecibelRange(-100, 100);   // -1000dB to 0dB ДОБАВИЛ ПОСЛДЕДНИЙ РАЗ
+    m_spectrum->setDecibelRange(-100, 100);   // -100dB to 100dB
     m_spectrum->setSpectrumData(frequencies, magnitudes);
 }
 

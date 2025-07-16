@@ -52,7 +52,7 @@ private:
 
     QSlider *m_progressSlider;
     QLabel *m_metadatalabel;
-    QLabel *m_timeLabel; //Таймер
+    QLabel *m_timeLabel;
 
     QToolButton *playBtn;
     QToolButton *pauseBtn;
@@ -62,7 +62,7 @@ private:
     QVector<double> m_samples;
     quint32 m_sampleRate = 0;
     qint64 m_lastSpectrumUpdate = 0;
-    const qint64 SPECTRUM_UPDATE_INTERVAL_MS = 50; // 20 FPS
+    const qint64 SPECTRUM_UPDATE_INTERVAL_MS = 50;
 };
 
-#endif // MAINWINDOW_H
+#endif

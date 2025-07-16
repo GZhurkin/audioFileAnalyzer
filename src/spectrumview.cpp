@@ -5,7 +5,6 @@
 #include <QPainterPath>
 #include <QResizeEvent>
 #include <QWheelEvent>
-#include <algorithm>
 #include <cmath>
 
 SpectrumView::SpectrumView(QWidget *parent)
@@ -164,9 +163,7 @@ void SpectrumView::mouseReleaseEvent(QMouseEvent *event)
 
 void SpectrumView::wheelEvent(QWheelEvent *event)
 {
-    double zoomFactor = 1.0
-                        + (event->angleDelta().y() > 0 ? 0.1
-                                                       : -0.1); // Более плавное масштабирование
+    double zoomFactor = 1.0 + (event->angleDelta().y() > 0 ? 0.1 : -0.1); // Более плавное масштабирование
     m_zoomFactor = qBound(1.0, m_zoomFactor * zoomFactor, 100.0);
 
     // Автоматическая коррекция панорамирования при увеличении
@@ -263,7 +260,9 @@ void SpectrumView::drawSpectrum(QPainter &painter)
     // Находим минимальное и максимальное значение для нормализации
     double minMag = m_maxDB;
     double maxMag = m_minDB;
-    for (const auto &point : m_spectrumData) {
+    const int count = m_spectrumData.size();
+    for (int i = 0; i < count; ++i) {
+        const SpectrumPoint& point = m_spectrumData[i];
         if (point.frequency >= visibleMinFreq && point.frequency <= visibleMaxFreq) {
             if (point.magnitude < minMag)
                 minMag = point.magnitude;
@@ -272,11 +271,9 @@ void SpectrumView::drawSpectrum(QPainter &painter)
         }
     }
 
-    // Добавляем 10% запаса сверху
-    double headroom = (maxMag - minMag) * 0.1;
-    double dynamicMaxDB = maxMag + headroom;
-
-    for (const auto &point : m_spectrumData) {
+    const int dataCount = m_spectrumData.size();
+    for (int i = 0; i < dataCount; ++i) {
+        const SpectrumPoint& point = m_spectrumData[i];
         double freq = point.frequency;
         double mag = point.magnitude;
 
